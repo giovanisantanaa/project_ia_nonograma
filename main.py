@@ -4,15 +4,20 @@ sys.path.append("src")
 
 
 if __name__ == "__main__":
-    from base_ia import Problem, Node
     from ambiente import Nonograma
-    
-    print("estruturas de busca importadas com sucesso")
-    print(Problem)
-    print(Node)
-    
-    print()
-    print("teste do tabuleiro:")
-    p = Nonograma([[2], [1]], [[1], [1], [1]], nome="teste")
+    from agente_regras import AgenteRegras
+
+    pistas_linha = [[1], [1], [5], [1], [1]]
+    pistas_coluna = [[1], [1], [5], [1], [1]]
+
+    p = Nonograma(pistas_linha, pistas_coluna, nome="cruz")
+    print("antes:")
     print(p)
-    print("resolvido?", p.esta_resolvido())
+
+    agente = AgenteRegras()
+    resultado = agente.resolver(p)
+
+    print("depois:")
+    print(p)
+    print(resultado)
+    print(p.esta_resolvido())
