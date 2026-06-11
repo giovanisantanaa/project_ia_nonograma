@@ -58,6 +58,9 @@ class Nonograma:
             if not self.linha_consistente(coluna, self.pistas_coluna[j]):
                 return False
             
+        return True
+    
+    
     def __repr__(self):
         simbolos = {DESCONHECIDO: '?', PINTADA: '#', VAZIA: '.'}
         texto = ''

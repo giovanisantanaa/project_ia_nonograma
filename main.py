@@ -19,5 +19,5 @@ if __name__ == "__main__":
 
     print("depois:")
     print(p)
+    # print(p.esta_resolvido())
     print(resultado)
-    print(p.esta_resolvido())
