@@ -6,18 +6,19 @@ sys.path.append("src")
 if __name__ == "__main__":
     from ambiente import Nonograma
     from agente_regras import AgenteRegras
+    from agente_csp import AgenteCSP
 
     pistas_linha = [[1], [1], [5], [1], [1]]
     pistas_coluna = [[1], [1], [5], [1], [1]]
 
-    p = Nonograma(pistas_linha, pistas_coluna, nome="cruz")
-    print("antes:")
-    print(p)
+    p1 = Nonograma(pistas_linha, pistas_coluna, nome="cruz")
+    agente_regras = AgenteRegras()
+    resultado_regras = agente_regras.resolver(p1)
+    print("regras:", resultado_regras)
+    print(p1)
 
-    agente = AgenteRegras()
-    resultado = agente.resolver(p)
-
-    print("depois:")
-    print(p)
-    # print(p.esta_resolvido())
-    print(resultado)
+    p2 = Nonograma(pistas_linha, pistas_coluna, nome="cruz")
+    agente_csp = AgenteCSP()
+    resultado_csp = agente_csp.resolver(p2)
+    print("csp:", resultado_csp)
+    print(p2)
