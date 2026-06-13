@@ -164,7 +164,7 @@ def gerar_graficos():
     plt.title(f"Percentual de puzzles resolvidos por agente (Gerado em {timestamp_label})")
     plt.grid(axis="y", linestyle="--", alpha=0.6)
     plt.tight_layout()
-    resolvido_image_path = os.path.join(OUTPUT_DIR, f"{timestamp}_resolvido.png")
+    resolvido_image_path = os.path.join(OUTPUT_DIR, f"{timestamp}_taxa_resolvido.png")
     plt.savefig(resolvido_image_path)
     plt.close()
 
