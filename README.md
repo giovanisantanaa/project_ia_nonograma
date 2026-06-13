@@ -15,3 +15,9 @@ busca, CSP e raciocinio probabilistico.
 ```
 python main.py
 ```
+
+## Executar os testes
+
+```
+python -m pytest tests/ -v
+```
