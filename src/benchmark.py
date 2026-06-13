@@ -1,7 +1,3 @@
-#roda todos os agentes em todos os puzzles e  faz
-# a organização dos resultados
-# numa tabela pra comparar o desempenho
-
 import sys
 
 sys.path.append("src")
@@ -29,13 +25,12 @@ def rodar_benchmark():
 
 
 def imprimir_tabela(resultados):
-    print("{:<20} {:<25} {:<10} {:<12} {:<8}".format( "puzzle", "agente", "resolvido", "tempo (s)", "passos" ))
+    print("{:<20} {:<25} {:<10} {:<12} {:<8}".format("puzzle", "agente", "resolvido", "tempo (ms)", "passos"))
     print("-" * 80)
 
     for r in resultados:
-        print("{:<20} {:<25} {:<10} {:<12.6f} {:<8}".format(
-            r['puzzle'], r['nome'], str(r['resolvido']), r['tempo'], r['passos']
-        ))
+        tempo_ms = r['tempo'] * 1000
+        print("{:<20} {:<25} {:<10} {:<12.3f} {:<8}".format(r['puzzle'], r['nome'], str(r['resolvido']), tempo_ms, r['passos']))
 
 
 if __name__ == "__main__":
