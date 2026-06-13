@@ -17,7 +17,11 @@ def calcular_probabilidades(tabuleiro, linhas, colunas, cl, cc):
             if tabuleiro[i][j] != DESCONHECIDO:
                 linha_probs.append(None)
                 continue
-
+            
+            if len(cl[i]) == 0 or len(cc[j]) == 0:
+                linha_probs.append(None)
+                continue
+            
             total_l = len(cl[i])
             pintada_l = 0
             
@@ -25,7 +29,7 @@ def calcular_probabilidades(tabuleiro, linhas, colunas, cl, cc):
                 if cand[j] == PINTADA:
                     pintada_l = pintada_l + 1
             
-            p_linha = pintada_l / total_l if total_l > 0 else 0
+            p_linha = pintada_l / total_l
 
             total_c = len(cc[j])
             pintada_c = 0
@@ -34,10 +38,18 @@ def calcular_probabilidades(tabuleiro, linhas, colunas, cl, cc):
                 if cand[i] == PINTADA:
                     pintada_c = pintada_c + 1
             
-            p_coluna = pintada_c / total_c if total_c > 0 else 0
+            p_coluna = pintada_c / total_c
 
-            #combina as duas probabilidades
-            p_final = (p_linha + p_coluna) / 2
+            #regra do produto com normalizacao 
+            prob_pintada = p_linha * p_coluna
+            prob_vazia = (1 - p_linha) * (1 - p_coluna)
+            total = prob_pintada + prob_vazia
+            
+            if total == 0:
+                p_final = 0.5
+            else:
+                p_final = prob_pintada / total
+            
             linha_probs.append(p_final)
         
         probs.append(linha_probs)
