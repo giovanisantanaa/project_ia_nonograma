@@ -3,7 +3,8 @@
 Projeto da disciplina IMD3001 - Introducao a Inteligencia Artificial
 
 Integrantes:
-- 
+
+-
 
 ## Sobre
 
@@ -15,7 +16,11 @@ busca, CSP e raciocinio probabilistico.
 ```
 python main.py
 ```
+## Como gerar gráficos
 
+```
+python .\src\graph_gen.py
+```
 ## Executar os testes
 
 ```
