@@ -61,6 +61,10 @@ class Nonograma:
         return True
     
     
+    def copiar(self):
+        novo = Nonograma(self.pistas_linha, self.pistas_coluna, self.nome)
+        return novo
+    
     def __repr__(self):
         simbolos = {DESCONHECIDO: '?', PINTADA: '#', VAZIA: '.'}
         texto = ''

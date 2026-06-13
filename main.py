@@ -14,6 +14,7 @@ if __name__ == "__main__":
     for puzzle in puzzles_5x5():
         print("=== " + puzzle.nome + " ===")
         for agente in agentes:
-            resultado = agente.resolver(puzzle)
+            p = puzzle_original = puzzle.copiar()
+            resultado = agente.resolver(p)
             print(resultado)
         print()
