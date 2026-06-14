@@ -1,3 +1,10 @@
+"""Gerador de puzzles (nonograms) que valida unicidade de solução.
+
+Este módulo cria nonograms aleatórios, verifica que possuem exatamente uma
+solução usando o agente CSP e grava/ler de `puzzles.csv`. Mantive a lógica
+existente e apenas acrescentei comentários em PT-BR nas partes principais.
+"""
+
 import csv
 import json
 import os
@@ -7,7 +14,9 @@ import time
 from ambiente import Nonograma
 from agente_csp import AgenteCSP, ProblemaCSP
 
-DEFAULT_PUZZLES_CSV = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "puzzles.csv"))
+DEFAULT_PUZZLES_CSV = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "puzzles.csv")
+)
 
 
 def calcular_pistas(desenho):
@@ -57,12 +66,10 @@ def calcular_pistas(desenho):
     return pistas_linha, pistas_coluna
 
 
+
 def criar_puzzle(desenho, nome):
     pistas_linha, pistas_coluna = calcular_pistas(desenho)
     return Nonograma(pistas_linha, pistas_coluna, nome=nome)
-
-
-
 
 
 def _count_solutions(puzzle, max_solutions=2, timeout=10):
@@ -93,6 +100,9 @@ def _count_solutions(puzzle, max_solutions=2, timeout=10):
 
 
 def validar_unica_solucao(puzzle, timeout=10):
+    # Usa o agente CSP para verificar se o puzzle é resolvível e então
+    # conta soluções (limitado para performance). Retorna True apenas se
+    # houver exatamente uma solução encontrada no limite dado.
     agente = AgenteCSP()
     copia = puzzle.copiar()
     resultado = agente.resolver(copia)
@@ -103,7 +113,9 @@ def validar_unica_solucao(puzzle, timeout=10):
     return num_sol == 1
 
 
-def gerar_puzzles_unicos(tamanho, quantidade, arquivo_csv="puzzles.csv", timeout=10, max_tentativas=1000):
+def gerar_puzzles_unicos(
+    tamanho, quantidade, arquivo_csv="puzzles.csv", timeout=10, max_tentativas=1000
+):
     if tamanho not in {5, 10, 15, 20, 25}:
         raise ValueError("Tamanho inválido. Use 5, 10, 15, 20 ou 25.")
 
@@ -113,43 +125,63 @@ def gerar_puzzles_unicos(tamanho, quantidade, arquivo_csv="puzzles.csv", timeout
 
     while len(puzzles) < quantidade and tentativas < max_tentativas:
         tentativas += 1
-        desenho = [[random.randint(0, 1) for _ in range(tamanho)] for _ in range(tamanho)]
+        desenho = [
+            [random.randint(0, 1) for _ in range(tamanho)] for _ in range(tamanho)
+        ]
         puzzle = criar_puzzle(desenho, f"puzzle_{tamanho}x{tamanho}_{len(puzzles)+1}")
-        chave = json.dumps({
-            "pistas_linha": puzzle.pistas_linha,
-            "pistas_coluna": puzzle.pistas_coluna,
-        }, sort_keys=True)
+        chave = json.dumps(
+            {
+                "pistas_linha": puzzle.pistas_linha,
+                "pistas_coluna": puzzle.pistas_coluna,
+            },
+            sort_keys=True,
+        )
 
         if chave in vistos:
             continue
 
         if validar_unica_solucao(puzzle, timeout=timeout):
             vistos.add(chave)
-            puzzles.append({
-                "nome": puzzle.nome,
-                "tamanho": tamanho,
-                "pistas_linha": puzzle.pistas_linha,
-                "pistas_coluna": puzzle.pistas_coluna,
-                "desenho": desenho,
-            })
+            puzzles.append(
+                {
+                    "nome": puzzle.nome,
+                    "tamanho": tamanho,
+                    "pistas_linha": puzzle.pistas_linha,
+                    "pistas_coluna": puzzle.pistas_coluna,
+                    "desenho": desenho,
+                }
+            )
 
     if not puzzles:
-        raise RuntimeError("Nenhum puzzle válido foi gerado. Tente aumentar max_tentativas ou timeout.")
+        raise RuntimeError(
+            "Nenhum puzzle válido foi gerado. Tente aumentar max_tentativas ou timeout."
+        )
 
-    caminho_csv = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", arquivo_csv))
+    caminho_csv = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", arquivo_csv)
+    )
     os.makedirs(os.path.dirname(caminho_csv), exist_ok=True)
 
     with open(caminho_csv, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=["nome", "tamanho", "pistas_linha", "pistas_coluna", "desenho"])
+        writer = csv.DictWriter(
+            csvfile,
+            fieldnames=["nome", "tamanho", "pistas_linha", "pistas_coluna", "desenho"],
+        )
         writer.writeheader()
         for puzzle in puzzles:
-            writer.writerow({
-                "nome": puzzle["nome"],
-                "tamanho": puzzle["tamanho"],
-                "pistas_linha": json.dumps(puzzle["pistas_linha"], ensure_ascii=False),
-                "pistas_coluna": json.dumps(puzzle["pistas_coluna"], ensure_ascii=False),
-                "desenho": json.dumps(puzzle["desenho"], ensure_ascii=False),
-            })
+            writer.writerow(
+                {
+                    "nome": puzzle["nome"],
+                    "tamanho": puzzle["tamanho"],
+                    "pistas_linha": json.dumps(
+                        puzzle["pistas_linha"], ensure_ascii=False
+                    ),
+                    "pistas_coluna": json.dumps(
+                        puzzle["pistas_coluna"], ensure_ascii=False
+                    ),
+                    "desenho": json.dumps(puzzle["desenho"], ensure_ascii=False),
+                }
+            )
 
     return caminho_csv
 
@@ -176,12 +208,32 @@ def carregar_puzzles_csv(caminho_csv=None):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Gerar nonograms com solução única verificada pelo agente CSP.")
-    parser.add_argument("--tamanho", type=int, choices=[5, 10, 15, 20, 25], default=5, help="Tamanho do puzzle")
-    parser.add_argument("--quantidade", type=int, default=1, help="Número de puzzles a gerar")
+    parser = argparse.ArgumentParser(
+        description="Gerar nonograms com solução única verificada pelo agente CSP."
+    )
+    parser.add_argument(
+        "--tamanho",
+        type=int,
+        choices=[5, 10, 15, 20, 25],
+        default=5,
+        help="Tamanho do puzzle",
+    )
+    parser.add_argument(
+        "--quantidade", type=int, default=1, help="Número de puzzles a gerar"
+    )
     parser.add_argument("--csv", default="puzzles.csv", help="Arquivo CSV de saída")
-    parser.add_argument("--timeout", type=int, default=10, help="Timeout de verificação por puzzle em segundos")
-    parser.add_argument("--max-tentativas", type=int, default=1000, help="Número máximo de tentativas para gerar puzzles válidos")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=10,
+        help="Timeout de verificação por puzzle em segundos",
+    )
+    parser.add_argument(
+        "--max-tentativas",
+        type=int,
+        default=1000,
+        help="Número máximo de tentativas para gerar puzzles válidos",
+    )
 
     args = parser.parse_args()
     caminho = gerar_puzzles_unicos(

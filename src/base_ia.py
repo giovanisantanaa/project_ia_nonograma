@@ -1,5 +1,13 @@
+"""Framework básico de busca usado pelos agentes.
+
+Contém classes e algoritmos genéricos de busca (Problem, Node, BFS, DFS,
+A*, Greedy). Os agentes importam e utilizam essas ferramentas para modelar
+e resolver puzzles. Apenas comentários explicativos foram adicionados.
+"""
+
 # estruturas de busca - Problem, Node e os algoritmos
-#(BFS, DFS, A*, Greedy)
+# (BFS, DFS, A*, Greedy)
+
 
 class Problem:
     def __init__(self, initial, goal=None):
@@ -28,13 +36,15 @@ class Node:
         self.depth = 0 if parent is None else parent.depth + 1
 
     def __repr__(self):
-        return '<Node {}>'.format(self.state)
+        return "<Node {}>".format(self.state)
 
     def __lt__(self, node):
         return self.state < node.state
 
     def expand(self, problem):
-        return [self.child_node(problem, action) for action in problem.actions(self.state)]
+        return [
+            self.child_node(problem, action) for action in problem.actions(self.state)
+        ]
 
     def child_node(self, problem, action):
         next_state = problem.result(self.state, action)
@@ -135,14 +145,16 @@ def greedy_best_first_search(problem, h):
         node = frontier.pop(0)
         if node.state in visited:
             continue
-        if h(node) > best_h.get(node.state, float('inf')):
+        if h(node) > best_h.get(node.state, float("inf")):
             continue
         if problem.goal_test(node.state):
             return node
         visited.add(node.state)
         for child in node.expand(problem):
             child_h = h(child)
-            if child.state not in visited and child_h < best_h.get(child.state, float('inf')):
+            if child.state not in visited and child_h < best_h.get(
+                child.state, float("inf")
+            ):
                 best_h[child.state] = child_h
                 frontier.append(child)
     return None
@@ -161,14 +173,16 @@ def astar_search(problem, h):
         f_value = node.path_cost + h(node)
         if node.state in visited:
             continue
-        if f_value > best_f.get(node.state, float('inf')):
+        if f_value > best_f.get(node.state, float("inf")):
             continue
         if problem.goal_test(node.state):
             return node
         visited.add(node.state)
         for child in node.expand(problem):
             child_f = child.path_cost + h(child)
-            if child.state not in visited and child_f < best_f.get(child.state, float('inf')):
+            if child.state not in visited and child_f < best_f.get(
+                child.state, float("inf")
+            ):
                 best_f[child.state] = child_f
                 frontier.append(child)
     return None

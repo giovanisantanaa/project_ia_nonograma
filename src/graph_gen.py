@@ -1,9 +1,15 @@
+"""Geração de gráficos a partir dos resultados do benchmark.
+
+Este módulo agrupa os resultados por puzzle e por agente e gera três tipos
+de gráfico: tempo, passos e taxa de resolução. Comentários e nomes foram
+mantidos; aqui apenas foi adicionada documentação em PT-BR.
+"""
+
 import os
 from datetime import datetime
 
 import matplotlib.pyplot as plt
 from benchmark import rodar_benchmark
-
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "graph_images")
 
@@ -51,16 +57,16 @@ def gerar_graficos():
     cores = ["#4c72b0", "#dd8452", "#55a868", "#8172b3", "#64b5cd"]
     largura = 0.15
 
-    # keep original puzzle count
+    # Mantém o número original de puzzles
     original_count = len(x)
 
-    # --- Tempo chart: puzzles + média + melhor tempo + pior tempo
+    # --- Tempo: puzzles + média + melhor tempo + pior tempo
     x_tempo = x + ["média", "melhor tempo", "pior tempo"]
     indice_tempo = range(len(x_tempo))
 
     plt.figure(figsize=(14, 8))
     for idx, agente in enumerate(agentes):
-        # base values per puzzle
+        # Valores base para os puzzles originais
         base_vals = list(tempos_por_agente[agente])
         if original_count > 0:
             avg = sum(base_vals) / original_count
@@ -72,7 +78,13 @@ def gerar_graficos():
 
         valores = base_vals + [avg, best, worst]
         deslocamento = [i + largura * idx for i in indice_tempo]
-        barras = plt.bar(deslocamento, valores, width=largura, label=agente, color=cores[idx % len(cores)])
+        barras = plt.bar(
+            deslocamento,
+            valores,
+            width=largura,
+            label=agente,
+            color=cores[idx % len(cores)],
+        )
         for barra, valor in zip(barras, valores):
             altura = barra.get_height()
             plt.text(
@@ -86,8 +98,15 @@ def gerar_graficos():
 
     plt.xlabel("Puzzle")
     plt.ylabel("Tempo (ms)")
-    plt.title(f"Tempo de resolução por agente em cada puzzle (Gerado em {timestamp_label})")
-    plt.xticks([i + largura * (len(agentes) - 1) / 2 for i in indice_tempo], x_tempo, rotation=45, ha="right")
+    plt.title(
+        f"Tempo de resolução por agente em cada puzzle (Gerado em {timestamp_label})"
+    )
+    plt.xticks(
+        [i + largura * (len(agentes) - 1) / 2 for i in indice_tempo],
+        x_tempo,
+        rotation=45,
+        ha="right",
+    )
     plt.legend()
     plt.grid(axis="y", linestyle="--", alpha=0.6)
     plt.tight_layout()
@@ -95,7 +114,7 @@ def gerar_graficos():
     plt.savefig(tempo_image_path)
     plt.close()
 
-    # --- Passos chart: puzzles + média + menos passos + mais passos
+    # --- Passos: puzzles + média + menos passos + mais passos
     x_passos = x + ["média", "menos passos", "mais passos"]
     indice_passos = range(len(x_passos))
 
@@ -112,7 +131,13 @@ def gerar_graficos():
 
         valores_p = base_vals + [avg_p, least, most]
         deslocamento = [i + largura * idx for i in indice_passos]
-        barras = plt.bar(deslocamento, valores_p, width=largura, label=agente, color=cores[idx % len(cores)])
+        barras = plt.bar(
+            deslocamento,
+            valores_p,
+            width=largura,
+            label=agente,
+            color=cores[idx % len(cores)],
+        )
         for barra, valor in zip(barras, valores_p):
             altura = barra.get_height()
             plt.text(
@@ -126,8 +151,15 @@ def gerar_graficos():
 
     plt.xlabel("Puzzle")
     plt.ylabel("Passos")
-    plt.title(f"Passos de resolução por agente em cada puzzle (Gerado em {timestamp_label})")
-    plt.xticks([i + largura * (len(agentes) - 1) / 2 for i in indice_passos], x_passos, rotation=45, ha="right")
+    plt.title(
+        f"Passos de resolução por agente em cada puzzle (Gerado em {timestamp_label})"
+    )
+    plt.xticks(
+        [i + largura * (len(agentes) - 1) / 2 for i in indice_passos],
+        x_passos,
+        rotation=45,
+        ha="right",
+    )
     plt.legend()
     plt.grid(axis="y", linestyle="--", alpha=0.6)
     plt.tight_layout()
@@ -147,7 +179,11 @@ def gerar_graficos():
         porcentagens.append((count / total_puzzles) * 100)
 
     plt.figure(figsize=(10, 6))
-    barras = plt.bar(agentes, porcentagens, color=[cores[i % len(cores)] for i in range(len(agentes))])
+    barras = plt.bar(
+        agentes,
+        porcentagens,
+        color=[cores[i % len(cores)] for i in range(len(agentes))],
+    )
     for barra, valor in zip(barras, porcentagens):
         plt.text(
             barra.get_x() + barra.get_width() / 2,
@@ -161,7 +197,9 @@ def gerar_graficos():
     plt.ylim(0, 100)
     plt.xlabel("Agente")
     plt.ylabel("Percentual resolvido (%)")
-    plt.title(f"Percentual de puzzles resolvidos por agente (Gerado em {timestamp_label})")
+    plt.title(
+        f"Percentual de puzzles resolvidos por agente (Gerado em {timestamp_label})"
+    )
     plt.grid(axis="y", linestyle="--", alpha=0.6)
     plt.tight_layout()
     resolvido_image_path = os.path.join(OUTPUT_DIR, f"{timestamp}_taxa_resolvido.png")
