@@ -5,7 +5,7 @@
 import time
 
 from ambiente import DESCONHECIDO
-from base_ia import Problem, astar_search, SimpleProblemSolvingAgentProgram
+from base_ia import Problem, Node, astar_search, SimpleProblemSolvingAgentProgram
 from agente_regras import gerar_candidatos, filtrar_candidatos
 
 
@@ -13,8 +13,6 @@ class ProblemaCSP(Problem):
 
     def __init__(self, puzzle):
         self.puzzle = puzzle
-        estado = tuple(tuple(l) for l in puzzle.tabuleiro)
-        super().__init__(initial=estado)
 
         self.cands_l = []
         for i in range(puzzle.linhas):
@@ -27,6 +25,34 @@ class ProblemaCSP(Problem):
             self.cands_c.append(
                 gerar_candidatos(puzzle.linhas, puzzle.pistas_coluna[j])
             )
+
+        #propagacao de restricoes: enquanto existir celula com um unico 
+        #valor possivel, decide ela direto sem precisar de busca
+        self._propagar(puzzle)
+
+        estado = tuple(tuple(l) for l in puzzle.tabuleiro)
+        super().__init__(initial=estado)
+
+
+    def _propagar(self, puzzle):
+        mudou = True
+
+        while mudou:
+            mudou = False
+            tabuleiro = tuple(tuple(l) for l in puzzle.tabuleiro)
+            cl, cc = self._candidatos_atuais(tabuleiro)
+
+            for i in range(puzzle.linhas):
+                for j in range(puzzle.colunas):
+                    if puzzle.tabuleiro[i][j] != DESCONHECIDO:
+                        continue
+
+                    dom = self._dominio(i, j, cl, cc)
+                    if len(dom) == 1:
+                        puzzle.tabuleiro[i][j] = dom[0]
+                        mudou = True
+
+
 
     def _candidatos_atuais(self, tabuleiro):
         cl = []
@@ -151,6 +177,43 @@ def heuristica(node):
     return total
 
 
+def astar_limitado(problem, h, limite_nos):
+    frontier = []
+    visited = set()
+    best_f = {}
+
+    initial_node = Node(problem.initial)
+    frontier.append(initial_node)
+    best_f[initial_node.state] = initial_node.path_cost + h(initial_node)
+
+    nos_expandidos = 0
+
+    while frontier:
+        frontier.sort(key=lambda node: (node.path_cost + h(node), str(node.state)))
+        node = frontier.pop(0)
+        f_value = node.path_cost + h(node)
+
+        if node.state in visited:
+            continue
+        if f_value > best_f.get(node.state, float('inf')):
+            continue
+        if problem.goal_test(node.state):
+            return node
+
+        nos_expandidos = nos_expandidos + 1
+        if nos_expandidos > limite_nos:
+            return None
+
+        visited.add(node.state)
+        for child in node.expand(problem):
+            child_f = child.path_cost + h(child)
+            if child.state not in visited and child_f < best_f.get(child.state, float('inf')):
+                best_f[child.state] = child_f
+                frontier.append(child)
+
+    return None
+
+
 class AgenteCSP(SimpleProblemSolvingAgentProgram):
 
     def __init__(self):
@@ -167,16 +230,40 @@ class AgenteCSP(SimpleProblemSolvingAgentProgram):
         return self._csp
 
     def search(self, problem):
-        no = astar_search(problem, heuristica)
+        no = astar_limitado(problem, heuristica, 1500)
         if no is None:
-            return []
+            return None
         return no.solution()
+
+    def _completar_greedy(self, puzzle):
+        acoes = []
+
+        tabuleiro_tmp = []
+        for linha in puzzle.tabuleiro:
+            tabuleiro_tmp.append(linha[:])
+
+        while True:
+            estado = tuple(tuple(l) for l in tabuleiro_tmp)
+            celula, dom = self._csp._escolher_mrv(estado)
+
+            if celula is None or dom is None:
+                break
+
+            i, j = celula
+            val = dom[0]
+            tabuleiro_tmp[i][j] = val
+            acoes.append((i, j, val))
+
+        return acoes
 
     def resolver(self, puzzle):
         inicio = time.time()
 
         self._csp = ProblemaCSP(puzzle)
+
         acoes = self.search(self._csp)
+        if acoes is None:
+            acoes = self._completar_greedy(puzzle)
 
         historico = []
         for acao in acoes:

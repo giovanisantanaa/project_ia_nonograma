@@ -12,7 +12,7 @@ from ambiente import PINTADA, VAZIA
 class AgenteBuscaLocal:
 
     def __init__(self):
-        self.nome = 'Busca Local (Simulated Annealing)'
+        self.nome = 'Busca Local'
         self.temperatura_inicial = 50.0
         self.taxa_resfriamento = 0.995
         self.max_iteracoes = 2000
