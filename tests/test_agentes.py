@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("src")
 
 from puzzles import puzzles_5x5, puzzles_10x10
@@ -19,7 +20,7 @@ def test_agente_regras_resolve_cruz():
     p = puzzle.copiar()
     agente = AgenteRegras()
     resultado = agente.resolver(p)
-    assert resultado['resolvido'] == True
+    assert resultado["resolvido"] == True
 
 
 def test_agente_csp_resolve_cruz():
@@ -27,7 +28,7 @@ def test_agente_csp_resolve_cruz():
     p = puzzle.copiar()
     agente = AgenteCSP()
     resultado = agente.resolver(p)
-    assert resultado['resolvido'] == True
+    assert resultado["resolvido"] == True
 
 
 def test_agente_csp_sempre_resolve():
@@ -35,7 +36,7 @@ def test_agente_csp_sempre_resolve():
         p = puzzle.copiar()
         agente = AgenteCSP()
         resultado = agente.resolver(p)
-        assert resultado['resolvido'] == True
+        assert resultado["resolvido"] == True
 
 
 def test_agente_probabilistico_resolve_quadrado():
@@ -43,4 +44,4 @@ def test_agente_probabilistico_resolve_quadrado():
     p = puzzle.copiar()
     agente = AgenteProbabilistico()
     resultado = agente.resolver(p)
-    assert resultado['resolvido'] == True
+    assert resultado["resolvido"] == True

@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("src")
 
 from ambiente import Nonograma, DESCONHECIDO, PINTADA, VAZIA

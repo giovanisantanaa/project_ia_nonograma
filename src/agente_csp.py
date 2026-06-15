@@ -1,6 +1,6 @@
-#Agente CSP vai modelar o nonograma como problema de satisfacao de restricoes
-#usa A* com heuristica MRV pra escolher
-#qual celula tentar preencher primeiro
+# Agente CSP vai modelar o nonograma como problema de satisfacao de restricoes
+# usa A* com heuristica MRV pra escolher
+# qual celula tentar preencher primeiro
 
 import time
 
@@ -18,12 +18,15 @@ class ProblemaCSP(Problem):
 
         self.cands_l = []
         for i in range(puzzle.linhas):
-            self.cands_l.append(gerar_candidatos(puzzle.colunas, puzzle.pistas_linha[i]))
+            self.cands_l.append(
+                gerar_candidatos(puzzle.colunas, puzzle.pistas_linha[i])
+            )
 
         self.cands_c = []
         for j in range(puzzle.colunas):
-            self.cands_c.append(gerar_candidatos(puzzle.linhas, puzzle.pistas_coluna[j]))
-
+            self.cands_c.append(
+                gerar_candidatos(puzzle.linhas, puzzle.pistas_coluna[j])
+            )
 
     def _candidatos_atuais(self, tabuleiro):
         cl = []
@@ -39,7 +42,6 @@ class ProblemaCSP(Problem):
 
         return cl, cc
 
-
     def _dominio(self, i, j, cl, cc):
         vl = []
         for cand in cl[i]:
@@ -51,14 +53,13 @@ class ProblemaCSP(Problem):
             if cand[i] not in vc:
                 vc.append(cand[i])
 
-        
+        # domínio é a interseção dos valores possíveis segundo linha e coluna
         resultado = []
         for v in vl:
             if v in vc:
                 resultado.append(v)
 
         return resultado
-
 
     def _escolher_mrv(self, tabuleiro):
         cl, cc = self._candidatos_atuais(tabuleiro)
@@ -71,6 +72,7 @@ class ProblemaCSP(Problem):
                     continue
 
                 dom = self._dominio(i, j, cl, cc)
+                # se algum domínio for vazio, não há solução pelo caminho atual
                 if len(dom) == 0:
                     return None, None
 
@@ -84,6 +86,7 @@ class ProblemaCSP(Problem):
                     if tabuleiro[r][j] == DESCONHECIDO:
                         desconh_c = desconh_c + 1
 
+                # usa (tamanho do domínio, -soma_desconhecidos) como heurística
                 score = (len(dom), -(desconh_l + desconh_c))
                 if score < melhor_score:
                     melhor_score = score
@@ -91,11 +94,10 @@ class ProblemaCSP(Problem):
 
         if melhor is None:
             return None, None
-        
-        i, j, dom = melhor
-        
-        return (i, j), dom
 
+        i, j, dom = melhor
+
+        return (i, j), dom
 
     def actions(self, state):
         tabuleiro = state
@@ -119,32 +121,33 @@ class ProblemaCSP(Problem):
     def goal_test(self, state):
         tabuleiro = [list(l) for l in state]
         p = self.puzzle
-        
+
         for i, linha in enumerate(tabuleiro):
             if DESCONHECIDO in linha:
                 return False
             if not p.linha_consistente(linha, p.pistas_linha[i]):
                 return False
-        
+
         for j in range(p.colunas):
             col = []
             for i in range(p.linhas):
                 col.append(tabuleiro[i][j])
             if not p.linha_consistente(col, p.pistas_coluna[j]):
                 return False
-        
+
+        # todas linhas/colunas coerentes e sem desconhecidos => solução
         return True
 
 
 # quantidade de celulas ainda desconhecidas
 def heuristica(node):
     total = 0
-    
+
     for linha in node.state:
         for cel in linha:
             if cel == DESCONHECIDO:
                 total = total + 1
-    
+
     return total
 
 
@@ -152,26 +155,22 @@ class AgenteCSP(SimpleProblemSolvingAgentProgram):
 
     def __init__(self):
         super().__init__()
-        self.nome = 'CSP (A*)'
+        self.nome = "CSP (A*)"
 
     def update_state(self, state, percept):
         return percept
 
-
     def formulate_goal(self, state):
-        return 'resolvido'
-
+        return "resolvido"
 
     def formulate_problem(self, state, goal):
         return self._csp
-
 
     def search(self, problem):
         no = astar_search(problem, heuristica)
         if no is None:
             return []
         return no.solution()
-
 
     def resolver(self, puzzle):
         inicio = time.time()
@@ -186,8 +185,8 @@ class AgenteCSP(SimpleProblemSolvingAgentProgram):
         tempo = time.time() - inicio
 
         return {
-            'nome': self.nome,
-            'resolvido': puzzle.esta_resolvido(),
-            'tempo': tempo,
-            'passos': len(acoes),
+            "nome": self.nome,
+            "resolvido": puzzle.esta_resolvido(),
+            "tempo": tempo,
+            "passos": len(acoes),
         }

@@ -1,5 +1,5 @@
 # agente que resolve o nonograma usando inferencia logica
-# baseado em regras que vai descobrindo as celulas com 
+# baseado em regras que vai descobrindo as celulas com
 # certeza ate nao  conseguir mais nada
 
 import time
@@ -9,7 +9,7 @@ from base_ia import Problem, Node, SimpleProblemSolvingAgentProgram
 
 
 def gerar_candidatos(tamanho, pista):
-    
+
     if not pista:
         return [[VAZIA] * tamanho]
 
@@ -19,10 +19,11 @@ def gerar_candidatos(tamanho, pista):
         if idx == len(pista):
             resultados.append(atual + [VAZIA] * (tamanho - pos))
             return
-        
+
         g = pista[idx]
         espaco_min = sum(pista[idx:]) + len(pista) - idx - 1
-        
+
+        # tenta posicionar o grupo atual (`g`) em todas posições possíveis
         for inicio in range(pos, tamanho - espaco_min + 1):
             linha = atual + [VAZIA] * (inicio - pos) + [PINTADA] * g
             prox = inicio + g
@@ -37,17 +38,18 @@ def gerar_candidatos(tamanho, pista):
 
 def filtrar_candidatos(linha_atual, candidatos):
     compativeis = []
-    
+
     for cand in candidatos:
         valido = True
         for j, cel in enumerate(linha_atual):
+            # se a célula já estiver definida, deve coincidir com o candidato
             if cel != DESCONHECIDO and cel != cand[j]:
                 valido = False
                 break
-        
+
         if valido:
             compativeis.append(cand)
-    
+
     return compativeis
 
 
@@ -58,6 +60,8 @@ def intersecao_candidatos(candidatos):
     tamanho = len(candidatos[0])
     resultado = []
 
+    # retorna valor comum em cada posição se todos candidatos concordam,
+    # caso contrário marca como DESCONHECIDO
     for j in range(tamanho):
         primeiro = candidatos[0][j]
         todos_iguais = True
@@ -93,13 +97,20 @@ class ProblemaNonograma(Problem):
         tabuleiro = [list(l) for l in state]
         inferencias = []
 
-        cl = [filtrar_candidatos(tabuleiro[i], self.cands_linhas[i])
-              for i in range(self.puzzle.linhas)]
-        cc = [filtrar_candidatos([tabuleiro[r][j] for r in range(self.puzzle.linhas)],
-                                  self.cands_colunas[j])
-              for j in range(self.puzzle.colunas)]
+        cl = [
+            filtrar_candidatos(tabuleiro[i], self.cands_linhas[i])
+            for i in range(self.puzzle.linhas)
+        ]
+        cc = [
+            filtrar_candidatos(
+                [tabuleiro[r][j] for r in range(self.puzzle.linhas)],
+                self.cands_colunas[j],
+            )
+            for j in range(self.puzzle.colunas)
+        ]
 
-        
+        # inferências por linhas: interseção de candidatos mostra células
+        # que são iguais em todos os candidatos possíveis
         for i in range(self.puzzle.linhas):
             if not cl[i]:
                 continue
@@ -108,6 +119,7 @@ class ProblemaNonograma(Problem):
                 if val != DESCONHECIDO and tabuleiro[i][j] == DESCONHECIDO:
                     inferencias.append((i, j, val))
 
+        # inferências por colunas
         for j in range(self.puzzle.colunas):
             if not cc[j]:
                 continue
@@ -116,7 +128,6 @@ class ProblemaNonograma(Problem):
                 if val != DESCONHECIDO and tabuleiro[i][j] == DESCONHECIDO:
                     inferencias.append((i, j, val))
 
-        
         vistos = set()
         unicos = []
         for inf in inferencias:
@@ -131,22 +142,21 @@ class ProblemaNonograma(Problem):
         tabuleiro[i][j] = val
         return tuple(tuple(l) for l in tabuleiro)
 
-
     def goal_test(self, state):
         tabuleiro = [list(l) for l in state]
         p = self.puzzle
-        
+
         for i, linha in enumerate(tabuleiro):
             if DESCONHECIDO in linha:
                 return False
             if not p.linha_consistente(linha, p.pistas_linha[i]):
                 return False
-        
+
         for j in range(p.colunas):
             col = [tabuleiro[i][j] for i in range(p.linhas)]
             if not p.linha_consistente(col, p.pistas_coluna[j]):
                 return False
-        
+
         return True
 
 
@@ -154,13 +164,13 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
 
     def __init__(self):
         super().__init__()
-        self.nome = 'Baseado em Regras'
+        self.nome = "Baseado em Regras"
 
     def update_state(self, state, percept):
         return percept
 
     def formulate_goal(self, state):
-        return 'resolvido'
+        return "resolvido"
 
     def formulate_problem(self, state, goal):
         return self._problema
@@ -168,16 +178,16 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
     def search(self, problem):
         state = problem.initial
         todas = []
-        
+
         while True:
             acoes = problem.actions(state)
             if not acoes:
                 break
             todas.extend(acoes)
-            
+
             for a in acoes:
                 state = problem.result(state, a)
-        
+
         return todas
 
     def resolver(self, puzzle):
@@ -187,14 +197,15 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
         passos = 0
 
         state = self._problema.initial
-        
+
         while True:
             acoes = self._problema.actions(state)
             passos += 1
-            
+
             if not acoes:
                 break
 
+            # aplica cada inferência diretamente no tabuleiro
             for acao in acoes:
                 state = self._problema.result(state, acao)
                 i, j, val = acao
@@ -203,8 +214,8 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
         tempo = time.time() - inicio
 
         return {
-            'nome': self.nome,
-            'resolvido': puzzle.esta_resolvido(),
-            'tempo': tempo,
-            'passos': passos,
+            "nome": self.nome,
+            "resolvido": puzzle.esta_resolvido(),
+            "tempo": tempo,
+            "passos": passos,
         }
