@@ -8,12 +8,12 @@ from agente_regras import AgenteRegras
 from agente_csp import AgenteCSP
 from agente_probabilistico import AgenteProbabilistico
 from agente_local import AgenteBuscaLocal
-from puzzles import puzzles_5x5, puzzles_10x10
+from puzzles import puzzles_todos
 
 
 def rodar_benchmark():
     agentes = [AgenteRegras(), AgenteCSP(), AgenteProbabilistico(), AgenteBuscaLocal()]
-    puzzles = puzzles_5x5() + puzzles_10x10()
+    puzzles = puzzles_todos()
 
     resultados = []
 
@@ -22,6 +22,7 @@ def rodar_benchmark():
             p = puzzle.copiar()
             resultado = agente.resolver(p)
             resultado['puzzle'] = puzzle.nome
+            resultado['tamanho'] = puzzle.linhas
             resultados.append(resultado)
 
     return resultados

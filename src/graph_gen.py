@@ -1,212 +1,130 @@
-"""Geração de gráficos a partir dos resultados do benchmark.
+# gera graficos comparando os 4 agentes em todos os tamanhos de puzzle
+# salva os graficos na pasta graph_images/
 
-Este módulo agrupa os resultados por puzzle e por agente e gera três tipos
-de gráfico: tempo, passos e taxa de resolução. Comentários e nomes foram
-mantidos; aqui apenas foi adicionada documentação em PT-BR.
-"""
-
+import sys
 import os
-from datetime import datetime
+
+sys.path.append("src")
 
 import matplotlib.pyplot as plt
-from benchmark import rodar_benchmark
 
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "graph_images")
+from benchmark import rodar_benchmark
+from puzzles import TAMANHOS
+
+
+def organizar_por_agente_e_tamanho(resultados):
+    dados = {}
+
+    for r in resultados:
+        nome = r['nome']
+        tamanho = r['tamanho']
+
+        if nome not in dados:
+            dados[nome] = {}
+        if tamanho not in dados[nome]:
+            dados[nome][tamanho] = []
+
+        dados[nome][tamanho].append(r)
+
+    return dados
+
+
+def calcular_media(lista, campo):
+    total = 0
+    for r in lista:
+        total = total + r[campo]
+    return total / len(lista)
+
+
+def calcular_taxa_resolvido(lista):
+    total = len(lista)
+    resolvidos = 0
+    for r in lista:
+        if r['resolvido']:
+            resolvidos = resolvidos + 1
+    return (resolvidos / total) * 100
+
+
+def grafico_tempo(dados, pasta):
+    plt.figure()
+
+    for nome_agente in dados:
+        tamanhos = []
+        tempos = []
+        for tamanho in TAMANHOS:
+            if tamanho in dados[nome_agente]:
+                media = calcular_media(dados[nome_agente][tamanho], 'tempo')
+                tamanhos.append(tamanho)
+                tempos.append(media * 1000)
+
+        plt.plot(tamanhos, tempos, marker='o', label=nome_agente)
+
+    plt.xlabel('tamanho do puzzle (NxN)')
+    plt.ylabel('tempo medio (ms)')
+    plt.title('Tempo medio por tamanho de puzzle')
+    plt.legend()
+    plt.savefig(pasta + '/tempo.png')
+    plt.close()
+
+
+def grafico_passos(dados, pasta):
+    plt.figure()
+
+    for nome_agente in dados:
+        tamanhos = []
+        passos = []
+        for tamanho in TAMANHOS:
+            if tamanho in dados[nome_agente]:
+                media = calcular_media(dados[nome_agente][tamanho], 'passos')
+                tamanhos.append(tamanho)
+                passos.append(media)
+
+        plt.plot(tamanhos, passos, marker='o', label=nome_agente)
+
+    plt.xlabel('tamanho do puzzle (NxN)')
+    plt.ylabel('passos medios')
+    plt.title('Passos medios por tamanho de puzzle')
+    plt.legend()
+    plt.savefig(pasta + '/passos.png')
+    plt.close()
+
+
+def grafico_taxa_resolvido(dados, pasta):
+    plt.figure()
+
+    for nome_agente in dados:
+        tamanhos = []
+        taxas = []
+        for tamanho in TAMANHOS:
+            if tamanho in dados[nome_agente]:
+                taxa = calcular_taxa_resolvido(dados[nome_agente][tamanho])
+                tamanhos.append(tamanho)
+                taxas.append(taxa)
+
+        plt.plot(tamanhos, taxas, marker='o', label=nome_agente)
+
+    plt.xlabel('tamanho do puzzle (NxN)')
+    plt.ylabel('% resolvido')
+    plt.title('Taxa de resolucao por tamanho de puzzle')
+    plt.legend()
+    plt.ylim(0, 105)
+    plt.savefig(pasta + '/taxa_resolvido.png')
+    plt.close()
 
 
 def gerar_graficos():
     resultados = rodar_benchmark()
+    dados = organizar_por_agente_e_tamanho(resultados)
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    pasta = 'graph_images'
+    if not os.path.exists(pasta):
+        os.makedirs(pasta)
 
-    # Preserva a ordem dos puzzles e organiza métricas por agente
-    ordem_puzzles = []
-    dados_por_puzzle = {}
-    agentes = []
+    grafico_tempo(dados, pasta)
+    grafico_passos(dados, pasta)
+    grafico_taxa_resolvido(dados, pasta)
 
-    for resultado in resultados:
-        puzzle = resultado["puzzle"]
-        agente = resultado["nome"]
-
-        if puzzle not in dados_por_puzzle:
-            dados_por_puzzle[puzzle] = {}
-            ordem_puzzles.append(puzzle)
-        dados_por_puzzle[puzzle][agente] = resultado
-
-        if agente not in agentes:
-            agentes.append(agente)
-
-    timestamp = datetime.now().strftime("%H-%M-%S")
-    timestamp_label = datetime.now().strftime("%H:%M:%S")
-
-    # Organiza dados para cada agente em cada puzzle
-    x = list(ordem_puzzles)
-    tempos_por_agente = {agente: [] for agente in agentes}
-    passos_por_agente = {agente: [] for agente in agentes}
-
-    for puzzle in x:
-        for agente in agentes:
-            resultado = dados_por_puzzle.get(puzzle, {}).get(agente, None)
-            if resultado is None:
-                tempos_por_agente[agente].append(0)
-                passos_por_agente[agente].append(0)
-            else:
-                tempos_por_agente[agente].append(resultado["tempo"] * 1000)
-                passos_por_agente[agente].append(resultado["passos"])
-
-    cores = ["#4c72b0", "#dd8452", "#55a868", "#8172b3", "#64b5cd"]
-    largura = 0.15
-
-    # Mantém o número original de puzzles
-    original_count = len(x)
-
-    # --- Tempo: puzzles + média + melhor tempo + pior tempo
-    x_tempo = x + ["média", "melhor tempo", "pior tempo"]
-    indice_tempo = range(len(x_tempo))
-
-    plt.figure(figsize=(14, 8))
-    for idx, agente in enumerate(agentes):
-        # Valores base para os puzzles originais
-        base_vals = list(tempos_por_agente[agente])
-        if original_count > 0:
-            avg = sum(base_vals) / original_count
-            nonzero = [v for v in base_vals if v > 0]
-            best = min(nonzero) if nonzero else 0
-            worst = max(base_vals) if base_vals else 0
-        else:
-            avg = best = worst = 0
-
-        valores = base_vals + [avg, best, worst]
-        deslocamento = [i + largura * idx for i in indice_tempo]
-        barras = plt.bar(
-            deslocamento,
-            valores,
-            width=largura,
-            label=agente,
-            color=cores[idx % len(cores)],
-        )
-        for barra, valor in zip(barras, valores):
-            altura = barra.get_height()
-            plt.text(
-                barra.get_x() + barra.get_width() / 2,
-                altura,
-                f"{valor:.1f}",
-                ha="center",
-                va="bottom",
-                fontsize=8,
-            )
-
-    plt.xlabel("Puzzle")
-    plt.ylabel("Tempo (ms)")
-    plt.title(
-        f"Tempo de resolução por agente em cada puzzle (Gerado em {timestamp_label})"
-    )
-    plt.xticks(
-        [i + largura * (len(agentes) - 1) / 2 for i in indice_tempo],
-        x_tempo,
-        rotation=45,
-        ha="right",
-    )
-    plt.legend()
-    plt.grid(axis="y", linestyle="--", alpha=0.6)
-    plt.tight_layout()
-    tempo_image_path = os.path.join(OUTPUT_DIR, f"{timestamp}_tempo.png")
-    plt.savefig(tempo_image_path)
-    plt.close()
-
-    # --- Passos: puzzles + média + menos passos + mais passos
-    x_passos = x + ["média", "menos passos", "mais passos"]
-    indice_passos = range(len(x_passos))
-
-    plt.figure(figsize=(14, 8))
-    for idx, agente in enumerate(agentes):
-        base_vals = list(passos_por_agente[agente])
-        if original_count > 0:
-            avg_p = sum(base_vals) / original_count
-            nonzero_p = [v for v in base_vals if v > 0]
-            least = min(nonzero_p) if nonzero_p else 0
-            most = max(base_vals) if base_vals else 0
-        else:
-            avg_p = least = most = 0
-
-        valores_p = base_vals + [avg_p, least, most]
-        deslocamento = [i + largura * idx for i in indice_passos]
-        barras = plt.bar(
-            deslocamento,
-            valores_p,
-            width=largura,
-            label=agente,
-            color=cores[idx % len(cores)],
-        )
-        for barra, valor in zip(barras, valores_p):
-            altura = barra.get_height()
-            plt.text(
-                barra.get_x() + barra.get_width() / 2,
-                altura,
-                f"{int(valor)}",
-                ha="center",
-                va="bottom",
-                fontsize=8,
-            )
-
-    plt.xlabel("Puzzle")
-    plt.ylabel("Passos")
-    plt.title(
-        f"Passos de resolução por agente em cada puzzle (Gerado em {timestamp_label})"
-    )
-    plt.xticks(
-        [i + largura * (len(agentes) - 1) / 2 for i in indice_passos],
-        x_passos,
-        rotation=45,
-        ha="right",
-    )
-    plt.legend()
-    plt.grid(axis="y", linestyle="--", alpha=0.6)
-    plt.tight_layout()
-    passos_image_path = os.path.join(OUTPUT_DIR, f"{timestamp}_passos.png")
-    plt.savefig(passos_image_path)
-    plt.close()
-
-    # Percentual de puzzles resolvidos por agente (use only actual puzzles count)
-    total_puzzles = original_count if original_count > 0 else 1
-    porcentagens = []
-    for agente in agentes:
-        count = 0
-        for puzzle in x:
-            res = dados_por_puzzle.get(puzzle, {}).get(agente)
-            if res and res.get("resolvido"):
-                count += 1
-        porcentagens.append((count / total_puzzles) * 100)
-
-    plt.figure(figsize=(10, 6))
-    barras = plt.bar(
-        agentes,
-        porcentagens,
-        color=[cores[i % len(cores)] for i in range(len(agentes))],
-    )
-    for barra, valor in zip(barras, porcentagens):
-        plt.text(
-            barra.get_x() + barra.get_width() / 2,
-            barra.get_height(),
-            f"{valor:.1f}%",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-        )
-
-    plt.ylim(0, 100)
-    plt.xlabel("Agente")
-    plt.ylabel("Percentual resolvido (%)")
-    plt.title(
-        f"Percentual de puzzles resolvidos por agente (Gerado em {timestamp_label})"
-    )
-    plt.grid(axis="y", linestyle="--", alpha=0.6)
-    plt.tight_layout()
-    resolvido_image_path = os.path.join(OUTPUT_DIR, f"{timestamp}_taxa_resolvido.png")
-    plt.savefig(resolvido_image_path)
-    plt.close()
-
-    return [tempo_image_path, passos_image_path, resolvido_image_path]
+    print('graficos salvos na pasta ' + pasta)
 
 
 if __name__ == "__main__":
