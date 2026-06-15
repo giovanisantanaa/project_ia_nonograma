@@ -6,6 +6,7 @@ from puzzles import puzzles_5x5, puzzles_10x10
 from agente_regras import AgenteRegras
 from agente_csp import AgenteCSP
 from agente_probabilistico import AgenteProbabilistico
+from agente_local import AgenteBuscaLocal
 
 
 def pegar_puzzle(nome):
@@ -45,3 +46,22 @@ def test_agente_probabilistico_resolve_quadrado():
     agente = AgenteProbabilistico()
     resultado = agente.resolver(p)
     assert resultado["resolvido"] == True
+
+
+def test_agente_csp_tem_historico():
+    puzzle = pegar_puzzle("cruz 5x5")
+    p = puzzle.copiar()
+    agente = AgenteCSP()
+    resultado = agente.resolver(p)
+    assert len(resultado["historico_passos"]) == resultado["passos"]
+    assert len(resultado["historico_celulas"]) == resultado["passos"]
+
+
+def test_agente_busca_local_retorna_resultado():
+    puzzle = pegar_puzzle("cruz 5x5")
+    p = puzzle.copiar()
+    agente = AgenteBuscaLocal()
+    resultado = agente.resolver(p)
+    assert "resolvido" in resultado
+    assert "historico_passos" in resultado
+    assert "historico_celulas" in resultado

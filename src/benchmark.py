@@ -7,11 +7,12 @@ sys.path.append("src")
 from agente_regras import AgenteRegras
 from agente_csp import AgenteCSP
 from agente_probabilistico import AgenteProbabilistico
+from agente_local import AgenteBuscaLocal
 from puzzles import puzzles_5x5, puzzles_10x10
 
 
 def rodar_benchmark():
-    agentes = [AgenteRegras(), AgenteCSP(), AgenteProbabilistico()]
+    agentes = [AgenteRegras(), AgenteCSP(), AgenteProbabilistico(), AgenteBuscaLocal()]
     puzzles = puzzles_5x5() + puzzles_10x10()
 
     resultados = []

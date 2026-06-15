@@ -68,6 +68,8 @@ class AgenteProbabilistico:
     def resolver(self, puzzle):
         inicio = time.time()
         passos = 0
+        historico_passos = []
+        historico_celulas = []
 
         cands_l = []
 
@@ -113,30 +115,42 @@ class AgenteProbabilistico:
                         puzzle.tabuleiro[i][j] = VAZIA
                         mudou = True
 
-            # se houve inferências óbvias (limiar alto/baixo), repete
-            if mudou:
-                continue
+                    if p >= self.limite_alto or p <= self.limite_baixo:
+                        linha_copia = []
+                        for linha in puzzle.tabuleiro:
+                            linha_copia.append(linha[:])
+                        historico_celulas.append(linha_copia)
 
-            melhor_i, melhor_j, melhor_p, melhor_dist = None, None, None, -1
+            if not mudou:
+                melhor_i, melhor_j, melhor_p, melhor_dist = None, None, None, -1
 
-            for i in range(puzzle.linhas):
-                for j in range(puzzle.colunas):
-                    p = probs[i][j]
-                    if p is None:
-                        continue
-                    dist = abs(p - 0.5)
-                    if dist > melhor_dist:
-                        melhor_dist = dist
-                        melhor_i, melhor_j, melhor_p = i, j, p
+                for i in range(puzzle.linhas):
+                    for j in range(puzzle.colunas):
+                        p = probs[i][j]
+                        if p is None:
+                            continue
+                        dist = abs(p - 0.5)
+                        if dist > melhor_dist:
+                            melhor_dist = dist
+                            melhor_i, melhor_j, melhor_p = i, j, p
 
-            # se nenhum palpite plausível, sai do loop
-            if melhor_i is None:
-                break
+                if melhor_i is None:
+                    break
 
-            if melhor_p >= 0.5:
-                puzzle.tabuleiro[melhor_i][melhor_j] = PINTADA
-            else:
-                puzzle.tabuleiro[melhor_i][melhor_j] = VAZIA
+                if melhor_p >= 0.5:
+                    puzzle.tabuleiro[melhor_i][melhor_j] = PINTADA
+                else:
+                    puzzle.tabuleiro[melhor_i][melhor_j] = VAZIA
+
+                linha_copia = []
+                for linha in puzzle.tabuleiro:
+                    linha_copia.append(linha[:])
+                historico_celulas.append(linha_copia)
+
+            linha_copia = []
+            for linha in puzzle.tabuleiro:
+                linha_copia.append(linha[:])
+            historico_passos.append(linha_copia)
 
         tempo = time.time() - inicio
 
@@ -145,4 +159,6 @@ class AgenteProbabilistico:
             "resolvido": puzzle.esta_resolvido(),
             "tempo": tempo,
             "passos": passos,
+            "historico_passos": historico_passos,
+            "historico_celulas": historico_celulas,
         }

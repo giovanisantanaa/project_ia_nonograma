@@ -195,6 +195,8 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
 
         inicio = time.time()
         passos = 0
+        historico_passos = []
+        historico_celulas = []
 
         state = self._problema.initial
 
@@ -211,6 +213,16 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
                 i, j, val = acao
                 puzzle.tabuleiro[i][j] = val
 
+                linha_copia = []
+                for linha in puzzle.tabuleiro:
+                    linha_copia.append(linha[:])
+                historico_celulas.append(linha_copia)
+
+            linha_copia = []
+            for linha in puzzle.tabuleiro:
+                linha_copia.append(linha[:])
+            historico_passos.append(linha_copia)
+
         tempo = time.time() - inicio
 
         return {
@@ -218,4 +230,6 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
             "resolvido": puzzle.esta_resolvido(),
             "tempo": tempo,
             "passos": passos,
+            "historico_passos": historico_passos,
+            "historico_celulas": historico_celulas,
         }

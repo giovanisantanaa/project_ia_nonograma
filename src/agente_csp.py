@@ -178,9 +178,15 @@ class AgenteCSP(SimpleProblemSolvingAgentProgram):
         self._csp = ProblemaCSP(puzzle)
         acoes = self.search(self._csp)
 
+        historico = []
         for acao in acoes:
             i, j, val = acao
             puzzle.tabuleiro[i][j] = val
+
+            linha_copia = []
+            for linha in puzzle.tabuleiro:
+                linha_copia.append(linha[:])
+            historico.append(linha_copia)
 
         tempo = time.time() - inicio
 
@@ -189,4 +195,6 @@ class AgenteCSP(SimpleProblemSolvingAgentProgram):
             "resolvido": puzzle.esta_resolvido(),
             "tempo": tempo,
             "passos": len(acoes),
+            "historico_passos": historico,
+            "historico_celulas": historico,
         }
