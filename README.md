@@ -94,13 +94,14 @@ project_ia_nonograma/
 │   ├── base_ia.py              # Problem, Node, BFS/DFS/Greedy/A* (material da disciplina)
 │   ├── ambiente.py             # Classe Nonograma (tabuleiro, pistas e validação)
 │   ├── puzzles.py              # Banco de puzzles (5x5 a 25x25) + gerador aleatório
+│   ├── puzzles2.py             # Gerador alternativo com validação de unicidade de solução via CSP
 │   ├── agente_regras.py        # Agente 1: baseado em regras
 │   ├── agente_csp.py           # Agente 2: CSP com A* e propagação
 │   ├── agente_probabilistico.py# Agente 3: probabilístico/bayesiano
 │   ├── agente_local.py         # Agente 4: busca local (Simulated Annealing)
-│   ├── benchmark.py            # Executa os 4 agentes em todos os puzzles
+│   ├── benchmark.py            # Executa os agentes nos puzzles e retorna resultados
 │   ├── graph_gen.py            # Gera gráficos comparativos (graph_images/)
-│   └── interface.py            # Interface gráfica (Tkinter)
+│   └── interface.py            # Interface gráfica (Tkinter, 4 abas)
 
 └── tests/
     ├── test_ambiente.py
@@ -109,7 +110,7 @@ project_ia_nonograma/
 
 ## Como Executar
 
-Para executar o benchmark e abrir a interface gráfica:
+Para abrir a interface gráfica:
 
 ```bash
 python main.py
@@ -117,15 +118,30 @@ python main.py
 
 ### Interface Gráfica
 
-Na interface é possível:
+A interface possui quatro abas:
 
+**Aba Resolver**
 * Escolher um puzzle do banco (5x5 a 25x25);
 * Utilizar o modo **Puzzle Aleatório**, que gera um tabuleiro aleatório do tamanho escolhido;
 * Selecionar um dos quatro agentes;
 * Executar a resolução clicando em **Resolver**;
-* Acompanhar a animação utilizando os controles **Play**, **Pause** e **Avançar**.
+* Acompanhar a animação utilizando os controles **|<**, **<**, **Play/Pause**, **>** e **>|** (ir ao último frame).
 
 O modo **Por Passos / Célula a Célula** permite alterar o nível de detalhamento da animação.
+
+**Aba Comparar**
+* Executa os quatro agentes no mesmo puzzle simultaneamente;
+* Exibe os grids lado a lado com animação sincronizada;
+* Checkboxes permitem ativar ou desativar agentes individualmente.
+
+**Aba Benchmark**
+* Seleciona quais agentes rodar via checkboxes;
+* Exibe tabela comparativa de resultados (puzzle, agente, resolvido, tempo em ms, passos);
+* Suporta também modo de puzzle aleatório por tamanho.
+
+**Aba Gráficos**
+* Seleciona quais puzzles incluir via checkboxes (agrupados por tamanho);
+* Gera os gráficos comparativos diretamente na janela.
 
 ## Geração de Gráficos Comparativos
 
