@@ -11,9 +11,11 @@ from agente_local import AgenteBuscaLocal
 from puzzles import puzzles_todos
 
 
-def rodar_benchmark():
-    agentes = [AgenteRegras(), AgenteCSP(), AgenteProbabilistico(), AgenteBuscaLocal()]
-    puzzles = puzzles_todos()
+def rodar_benchmark(puzzles=None, agentes=None):
+    if agentes is None:
+        agentes = [AgenteRegras(), AgenteCSP(), AgenteProbabilistico(), AgenteBuscaLocal()]
+    if puzzles is None:
+        puzzles = puzzles_todos()
 
     resultados = []
 

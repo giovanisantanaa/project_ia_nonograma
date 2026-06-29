@@ -1,10 +1,3 @@
-"""Modelo do nonograma e constantes de estado.
-
-Este módulo define a classe `Nonograma` e constantes usadas pelos agentes
-para representar células desconhecidas, pintadas e vazias.
-Comentários e nomes de variáveis existentes foram mantidos.
-"""
-
 DESCONHECIDO = 0
 PINTADA = 1
 VAZIA = -1

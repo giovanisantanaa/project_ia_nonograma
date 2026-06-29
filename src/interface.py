@@ -23,7 +23,6 @@ try:
 except ImportError:
     TEM_MPL = False
 
-# cores da interface
 COR = {
     'fundo':    '#1E1E2E',
     'painel':   '#2A2A3E',
@@ -42,10 +41,17 @@ COR = {
 }
 
 CORES_AGENTES = {
-    'Baseado em Regras':                '#10B981',
-    'CSP (A*)':                         '#7C3AED',
-    'Probabilistico (Bayes)':           '#F59E0B',
-    'Busca Local (Simulated Annealing)':'#EF4444',
+    'Baseado em Regras':                 '#10B981',
+    'CSP (A*)':                          '#7C3AED',
+    'Probabilistico (Bayes)':            '#F59E0B',
+    'Busca Local (Simulated Annealing)': '#EF4444',
+}
+
+DESCRICAO_AGENTES = {
+    'Baseado em Regras':                 'Inferencia logica pura: interseção de candidatos possiveis',
+    'CSP (A*)':                          'CSP: propagacao de restricoes + busca A* com heuristica MRV',
+    'Probabilistico (Bayes)':            'Probabilistico: decide celulas por probabilidade bayesiana',
+    'Busca Local (Simulated Annealing)': 'Busca local: Simulated Annealing minimiza linhas inconsistentes',
 }
 
 
@@ -99,9 +105,7 @@ class GridCanvas(tk.Canvas):
         oy = self.oy
         p = self.puzzle
 
-        fonte_tam = int(tc * 0.38)
-        if fonte_tam < 6:
-            fonte_tam = 6
+        fonte_tam = max(10, int(tc * 0.55))
         fonte = ('Consolas', fonte_tam, 'bold')
 
         # pistas das colunas (em cima)
@@ -172,6 +176,29 @@ class GridCanvas(tk.Canvas):
         self.create_line(0, oy, ox + p.colunas * tc, oy,
                          fill=COR['texto'], width=2)
 
+
+
+class ScrollableArea(tk.Frame):
+
+    def __init__(self, parent, bg=COR['fundo'], **kw):
+        super().__init__(parent, bg=bg, **kw)
+        self._cv = tk.Canvas(self, bg=bg, highlightthickness=0)
+        hbar = ttk.Scrollbar(self, orient='horizontal', command=self._cv.xview)
+        vbar = ttk.Scrollbar(self, orient='vertical', command=self._cv.yview)
+        self._cv.configure(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
+        hbar.pack(side='bottom', fill='x')
+        vbar.pack(side='right', fill='y')
+        self._cv.pack(side='left', fill='both', expand=True)
+        self._child = None
+
+    def colocar(self, widget):
+        self._child = widget
+        self._cv.create_window((4, 4), window=widget, anchor='nw')
+        widget.bind('<Configure>', lambda *_: self._cv.configure(scrollregion=self._cv.bbox('all')))
+        # scroll com roda do mouse
+        self._cv.bind('<MouseWheel>', lambda e: self._cv.yview_scroll(-(e.delta // 120), 'units'))
+        self._cv.bind('<Shift-MouseWheel>', lambda e: self._cv.xview_scroll(-(e.delta // 120), 'units'))
+        widget.bind('<MouseWheel>', lambda e: self._cv.yview_scroll(-(e.delta // 120), 'units'))
 
 
 # Painel de metricas
@@ -391,7 +418,6 @@ class App(tk.Tk):
         self._build_graf(self._aba_graf)
 
 
-    #aba 1
     def _build_solo(self, pai):
         esq = tk.Frame(pai, bg=COR['painel'], width=260)
         esq.pack(side='left', fill='y', padx=(4, 6), pady=4)
@@ -527,6 +553,12 @@ class App(tk.Tk):
                                          font=('Segoe UI', 9, 'bold'))
         self._lbl_status_solo.pack(side='left', padx=6)
 
+        self._lbl_desc_solo = tk.Label(barra, text='',
+                                       bg=COR['painel2'], fg=COR['ciano'],
+                                       font=('Consolas', 11),
+                                       width=52, anchor='w')
+        self._lbl_desc_solo.pack(side='left', padx=10)
+
         self._frame_grid_solo = tk.Frame(dir_frame, bg=COR['fundo'])
         self._frame_grid_solo.pack(fill='both', expand=True)
 
@@ -574,6 +606,7 @@ class App(tk.Tk):
 
         self._puzzle_solo = puzzle_base
         self._lbl_status_solo.config(text='Resolvendo...', fg=COR['ciano'])
+        self._lbl_desc_solo.config(text='')
         self._metricas_solo.limpar()
         self._btn_play_solo.config(text='Play', bg=COR['roxo'])
 
@@ -590,31 +623,12 @@ class App(tk.Tk):
         for w in self._frame_grid_solo.winfo_children():
             w.destroy()
 
-        self.update_idletasks()
-        larg = self._frame_grid_solo.winfo_width() - 40
-        alt = self._frame_grid_solo.winfo_height() - 40
+        tc = 32  # tamanho fixo de cada celula; scroll cuida do overflow
 
-        mr = 1
-        for c in puzzle.pistas_linha:
-            if len(c) > mr:
-                mr = len(c)
-        mc = 1
-        for c in puzzle.pistas_coluna:
-            if len(c) > mc:
-                mc = len(c)
-
-        tc_w = (larg - mr * 20) // puzzle.colunas
-        tc_h = (alt - mc * 20) // puzzle.linhas
-        tc = tc_w
-        if tc_h < tc:
-            tc = tc_h
-        if tc < 12:
-            tc = 12
-        if tc > 42:
-            tc = 42
-
-        self._wgrid_solo = GridCanvas(self._frame_grid_solo, puzzle, tc=tc)
-        self._wgrid_solo.pack(expand=True)
+        area = ScrollableArea(self._frame_grid_solo)
+        area.pack(fill='both', expand=True)
+        self._wgrid_solo = GridCanvas(area._cv, puzzle, tc=tc)
+        area.colocar(self._wgrid_solo)
 
         modo = self._var_modo.get()
         if modo == 'celulas':
@@ -641,9 +655,19 @@ class App(tk.Tk):
         modo = self._var_modo.get()
         if modo == 'celulas':
             pref = 'Cel.'
+            chave_desc = 'descricoes'
         else:
             pref = 'Passo'
+            chave_desc = 'descricoes_passos'
         self._lbl_passo_solo.config(text='{} {} / {}'.format(pref, idx + 1, total))
+
+        # mostra descricao do passo atual
+        desc = ''
+        if self._resultado_solo:
+            descs = self._resultado_solo.get(chave_desc, [])
+            if idx < len(descs):
+                desc = descs[idx]
+        self._lbl_desc_solo.config(text=desc)
 
     def _solo_fim(self):
         self._btn_play_solo.config(text='Play', bg=COR['roxo'])
@@ -652,6 +676,8 @@ class App(tk.Tk):
                 self._lbl_status_solo.config(text='Resolvido!', fg=COR['verde'])
             else:
                 self._lbl_status_solo.config(text='Incompleto', fg=COR['amarelo'])
+            nome = self._resultado_solo.get('nome', '')
+            self._lbl_desc_solo.config(text=DESCRICAO_AGENTES.get(nome, ''))
 
     def _solo_toggle_play(self):
         if self._anim_solo._rodando:
@@ -661,7 +687,26 @@ class App(tk.Tk):
             self._anim_solo.play()
             self._btn_play_solo.config(text='Pause', bg=COR['amarelo'])
 
-    # Aba 2
+
+    def _comp_ajustar_colunas(self):
+        ativos = [a for a in self._agentes if self._agentes_ativos_comp[a.nome].get()]
+        n = len(ativos)
+        if n == 0:
+            return
+        win_w = self._cv_comp.winfo_width()
+        if win_w < 200:
+            win_w = self.winfo_width() - 30
+        col_w = max(200, (win_w - 6 * n) // n)
+        for agente in self._agentes:
+            col_data = self._comp_cols[agente.nome]
+            col_frame = col_data['col']
+            if self._agentes_ativos_comp[agente.nome].get():
+                col_frame.config(width=col_w)
+                col_frame.pack_propagate(False)
+                col_frame.pack(side='left', fill='y', padx=3)
+                col_data['desc'].config(wraplength=col_w - 20)
+            else:
+                col_frame.pack_forget()
 
     def _build_comp(self, pai):
         topo = tk.Frame(pai, bg=COR['painel2'])
@@ -718,6 +763,18 @@ class App(tk.Tk):
 
         cfg = dict(relief='flat', cursor='hand2', font=('Segoe UI', 9))
 
+        self._agentes_ativos_comp = {}
+        for agente in self._agentes:
+            cor = CORES_AGENTES.get(agente.nome, COR['roxo'])
+            var = tk.BooleanVar(value=True)
+            self._agentes_ativos_comp[agente.nome] = var
+            tk.Checkbutton(topo, text=agente.nome.split('(')[0].strip(), variable=var,
+                           bg=COR['painel2'], fg=cor,
+                           selectcolor=COR['painel2'],
+                           activebackground=COR['painel2'],
+                           font=('Segoe UI', 8, 'bold'),
+                           command=self._comp_ajustar_colunas).pack(side='left', padx=5)
+
         tk.Button(topo, text='Comparar', bg=COR['roxo'], fg='white',
                   command=self._comp_rodar, **cfg).pack(side='left', padx=6)
 
@@ -735,14 +792,37 @@ class App(tk.Tk):
         tk.Button(topo, text='>', bg=COR['painel'], fg=COR['texto'],
                   command=self._comp_avancar, **cfg).pack(side='left', padx=2)
 
+        tk.Button(topo, text='>|', bg=COR['painel'], fg=COR['texto'],
+                  command=self._comp_ir_fim, **cfg).pack(side='left', padx=2)
+
         self._lbl_passo_comp = tk.Label(topo, text='0 / 0',
                                         bg=COR['painel2'], fg=COR['texto'],
                                         font=('Consolas', 9, 'bold'))
         self._lbl_passo_comp.pack(side='left', padx=10)
 
-        #4 colunas
-        corpo = tk.Frame(pai, bg=COR['fundo'])
-        corpo.pack(fill='both', expand=True, padx=6, pady=4)
+        cont = tk.Frame(pai, bg=COR['fundo'])
+        cont.pack(fill='both', expand=True, padx=6, pady=4)
+
+        hbar_comp = ttk.Scrollbar(cont, orient='horizontal')
+        hbar_comp.pack(side='bottom', fill='x')
+
+        self._cv_comp = tk.Canvas(cont, bg=COR['fundo'], highlightthickness=0,
+                                   xscrollcommand=hbar_comp.set)
+        hbar_comp.config(command=self._cv_comp.xview)
+        self._cv_comp.pack(side='top', fill='both', expand=True)
+        self._cv_comp.bind('<MouseWheel>',
+            lambda e: self._cv_comp.xview_scroll(-(e.delta // 120), 'units'))
+
+        corpo = tk.Frame(self._cv_comp, bg=COR['fundo'])
+        self._corpo_win = self._cv_comp.create_window((0, 0), window=corpo, anchor='nw')
+
+        def _sync_altura(e):
+            self._cv_comp.configure(scrollregion=self._cv_comp.bbox('all'))
+            self._cv_comp.itemconfigure(self._corpo_win, height=e.height)
+            self._comp_ajustar_colunas()
+        self._cv_comp.bind('<Configure>', _sync_altura)
+        corpo.bind('<Configure>',
+            lambda *_: self._cv_comp.configure(scrollregion=self._cv_comp.bbox('all')))
 
         self._comp_cols = {}
         self._comp_grids = {}
@@ -753,23 +833,32 @@ class App(tk.Tk):
             cor = CORES_AGENTES.get(agente.nome, COR['roxo'])
 
             col = tk.Frame(corpo, bg=COR['painel'])
-            col.pack(side='left', fill='both', expand=True, padx=3)
+            col.pack(side='left', fill='y', padx=3)
 
             tk.Label(col, text=agente.nome, bg=cor, fg='white',
-                     font=('Segoe UI', 8, 'bold'), pady=4).pack(fill='x')
+                     font=('Segoe UI', 9, 'bold'), pady=5).pack(fill='x')
 
             gf = tk.Frame(col, bg=COR['painel'])
             gf.pack(fill='both', expand=True, padx=4, pady=4)
 
             lp = tk.Label(col, text='0 / 0', bg=COR['painel'],
-                          fg=COR['cinza'], font=('Consolas', 8))
+                          fg=COR['cinza'], font=('Consolas', 9))
             lp.pack()
+
+            df = tk.Frame(col, bg=COR['painel'], height=60)
+            df.pack(fill='x', padx=6, pady=2)
+            df.pack_propagate(False)
+            ld = tk.Label(df, text=DESCRICAO_AGENTES.get(agente.nome, ''),
+                          bg=COR['painel'], fg=COR['ciano'],
+                          font=('Consolas', 11), wraplength=260,
+                          justify='left', anchor='nw')
+            ld.pack(fill='both', expand=True)
 
             m = PainelMetricas(col)
             m.pack(fill='x', padx=2, pady=2)
 
             self._comp_cols[agente.nome] = {
-                'frame': gf, 'metricas': m, 'lbl': lp,
+                'col': col, 'frame': gf, 'metricas': m, 'lbl': lp, 'desc': ld,
             }
 
         self._comp_carregar()
@@ -818,6 +907,11 @@ class App(tk.Tk):
             modo = self._var_modo_comp.get()
 
             for agente in self._agentes:
+                if not self._agentes_ativos_comp[agente.nome].get():
+                    resultados.append(None)
+                    historicos.append([])
+                    continue
+
                 p = puzzle_base.copiar()
                 resultado = agente.resolver(p)
                 resultados.append(resultado)
@@ -847,17 +941,33 @@ class App(tk.Tk):
     def _comp_init(self, puzzle):
         self.update_idletasks()
 
-        tc = 16
-        if puzzle.linhas <= 10:
-            tc = 22
-        if puzzle.linhas <= 5:
-            tc = 28
+        tc = 20
+
+        ativos = [a for a in self._agentes if self._agentes_ativos_comp[a.nome].get()]
+        n = len(ativos)
+        if n == 0:
+            return
+
+        win_w = self._cv_comp.winfo_width()
+        if win_w < 200:
+            win_w = self.winfo_width() - 30
+        mr = max((len(c) for c in puzzle.pistas_linha), default=1)
+        grid_w = mr * tc + puzzle.colunas * tc + 20
+        col_w = max(grid_w, (win_w - 6 * n) // n)
 
         self._comp_grids_w = []
 
         for idx in range(len(self._agentes)):
             agente = self._agentes[idx]
             col = self._comp_cols[agente.nome]
+
+            if not self._agentes_ativos_comp[agente.nome].get():
+                self._comp_grids_w.append(None)
+                continue
+
+            col['col'].config(width=col_w)
+            col['col'].pack_propagate(False)
+            col['desc'].config(wraplength=col_w - 20)
 
             gw = GridCanvas(col['frame'], puzzle, tc=tc)
             gw.pack(expand=True)
@@ -883,8 +993,18 @@ class App(tk.Tk):
         if not self._comp_rodando:
             return
 
+        if len(self._comp_resultados) < len(self._agentes):
+            self._comp_rodando = False
+            return
+        if len(self._comp_grids_w) < len(self._agentes):
+            self._comp_rodando = False
+            return
+
         algum = False
         maior = self._comp_maior()
+
+        modo = self._var_modo_comp.get()
+        chave_desc = 'descricoes' if modo == 'celulas' else 'descricoes_passos'
 
         for idx in range(len(self._agentes)):
             agente = self._agentes[idx]
@@ -894,8 +1014,10 @@ class App(tk.Tk):
             total = len(hist)
             col = self._comp_cols[agente.nome]
 
+            if resultado is None or self._comp_grids_w[idx] is None:
+                continue
+
             if pos < total:
-                # achar celula que mudou
                 destaque = None
                 if pos > 0:
                     ant = hist[pos - 1]
@@ -908,15 +1030,30 @@ class App(tk.Tk):
                         if destaque:
                             break
 
-                self._comp_grids_w[idx].atualizar(hist[pos], destaque)
+                try:
+                    self._comp_grids_w[idx].atualizar(hist[pos], destaque)
+                except tk.TclError:
+                    self._comp_rodando = False
+                    return
+
                 col['lbl'].config(text=str(pos + 1) + ' / ' + str(total))
+
+                descs = resultado.get(chave_desc, [])
+                if pos < len(descs):
+                    col['desc'].config(text=descs[pos])
+
                 self._comp_idxs[idx] = pos + 1
                 algum = True
             else:
-                if hist:
-                    self._comp_grids_w[idx].atualizar(hist[-1])
+                try:
+                    if hist:
+                        self._comp_grids_w[idx].atualizar(hist[-1])
+                except tk.TclError:
+                    self._comp_rodando = False
+                    return
                 col['metricas'].atualizar(resultado)
                 col['lbl'].config(text='Pronto (' + str(len(hist)) + ' frames)')
+                col['desc'].config(text=DESCRICAO_AGENTES.get(agente.nome, ''))
 
         self._comp_idx = self._comp_idx + 1
         self._lbl_passo_comp.config(text=str(self._comp_idx) + ' / ' + str(maior))
@@ -938,35 +1075,47 @@ class App(tk.Tk):
             self._comp_parar()
             self._btn_comp_play.config(text='Play', bg=COR['roxo'])
         else:
+            if not self._comp_resultados or len(self._comp_grids_w) < len(self._agentes):
+                return
             self._comp_rodando = True
             self._btn_comp_play.config(text='Pause', bg=COR['amarelo'])
             self._comp_tick()
 
     def _comp_reiniciar(self):
         self._comp_parar()
-        if not self._comp_historicos:
+        if not self._comp_historicos or len(self._comp_grids_w) < len(self._agentes):
             return
 
         for idx in range(len(self._agentes)):
             self._comp_idxs[idx] = 0
+            if self._comp_grids_w[idx] is None:
+                continue
             hist = self._comp_historicos[idx]
-            if hist:
-                self._comp_grids_w[idx].atualizar(hist[0])
+            try:
+                if hist:
+                    self._comp_grids_w[idx].atualizar(hist[0])
+            except tk.TclError:
+                return
 
         self._comp_idx = 0
         self._lbl_passo_comp.config(text='0 / ' + str(self._comp_maior()))
 
     def _comp_voltar(self):
         self._comp_parar()
-        if not self._comp_historicos:
+        if not self._comp_historicos or len(self._comp_grids_w) < len(self._agentes):
             return
 
         for idx in range(len(self._agentes)):
+            if self._comp_grids_w[idx] is None:
+                continue
             pos = self._comp_idxs[idx]
             if pos > 1:
                 self._comp_idxs[idx] = pos - 1
                 hist = self._comp_historicos[idx]
-                self._comp_grids_w[idx].atualizar(hist[pos - 2])
+                try:
+                    self._comp_grids_w[idx].atualizar(hist[pos - 2])
+                except tk.TclError:
+                    return
                 col = self._comp_cols[self._agentes[idx].nome]
                 col['lbl'].config(text=str(pos - 1) + ' / ' + str(len(hist)))
 
@@ -976,14 +1125,19 @@ class App(tk.Tk):
 
     def _comp_avancar(self):
         self._comp_parar()
-        if not self._comp_historicos:
+        if not self._comp_historicos or len(self._comp_grids_w) < len(self._agentes):
             return
 
         for idx in range(len(self._agentes)):
+            if self._comp_grids_w[idx] is None:
+                continue
             pos = self._comp_idxs[idx]
             hist = self._comp_historicos[idx]
             if pos < len(hist):
-                self._comp_grids_w[idx].atualizar(hist[pos])
+                try:
+                    self._comp_grids_w[idx].atualizar(hist[pos])
+                except tk.TclError:
+                    return
                 self._comp_idxs[idx] = pos + 1
                 col = self._comp_cols[self._agentes[idx].nome]
                 col['lbl'].config(text=str(pos + 1) + ' / ' + str(len(hist)))
@@ -991,15 +1145,33 @@ class App(tk.Tk):
         self._comp_idx = self._comp_idx + 1
         self._lbl_passo_comp.config(text=str(self._comp_idx) + ' / ' + str(self._comp_maior()))
 
+    def _comp_ir_fim(self):
+        self._comp_parar()
+        if not self._comp_historicos or len(self._comp_grids_w) < len(self._agentes):
+            return
+        for idx in range(len(self._agentes)):
+            if self._comp_grids_w[idx] is None:
+                continue
+            hist = self._comp_historicos[idx]
+            try:
+                if hist:
+                    self._comp_grids_w[idx].atualizar(hist[-1])
+                    self._comp_idxs[idx] = len(hist)
+                    col = self._comp_cols[self._agentes[idx].nome]
+                    col['lbl'].config(text=str(len(hist)) + ' / ' + str(len(hist)))
+            except tk.TclError:
+                return
+        self._comp_idx = self._comp_maior()
+        self._lbl_passo_comp.config(text=str(self._comp_idx) + ' / ' + str(self._comp_maior()))
 
-    #Aba 3
+
 
 
     def _build_bench(self, pai):
         topo = tk.Frame(pai, bg=COR['painel2'])
         topo.pack(fill='x', padx=6, pady=6)
 
-        tk.Button(topo, text='Rodar Benchmark (banco de puzzles)',
+        tk.Button(topo, text='Rodar Benchmark',
                   bg=COR['verde'], fg='white', relief='flat', cursor='hand2',
                   font=('Segoe UI', 9, 'bold'), pady=6,
                   command=self._bench_rodar).pack(side='left', padx=8)
@@ -1026,21 +1198,56 @@ class App(tk.Tk):
                                       font=('Segoe UI', 9, 'bold'))
         self._lbl_bench_st.pack(side='right', padx=12)
 
-        self._txt_bench = tk.Text(pai, height=30, width=95,
+        corpo = tk.Frame(pai, bg=COR['fundo'])
+        corpo.pack(fill='both', expand=True, padx=6, pady=4)
+
+        esq = tk.Frame(corpo, bg=COR['painel'], width=200)
+        esq.pack(side='left', fill='y', padx=(0, 6))
+        esq.pack_propagate(False)
+
+        tk.Label(esq, text='AGENTES ATIVOS', bg=COR['painel'], fg=COR['roxo'],
+                 font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=8, pady=(10, 6))
+
+        self._agentes_ativos = {}
+        for agente in self._agentes:
+            cor = CORES_AGENTES.get(agente.nome, COR['roxo'])
+            var = tk.BooleanVar(value=True)
+            self._agentes_ativos[agente.nome] = var
+            tk.Checkbutton(esq, text=agente.nome, variable=var,
+                           bg=COR['painel'], fg=cor,
+                           selectcolor=COR['painel2'],
+                           activebackground=COR['painel'],
+                           font=('Segoe UI', 9, 'bold'),
+                           wraplength=175, justify='left').pack(anchor='w', padx=10, pady=4)
+
+        dir_f = tk.Frame(corpo, bg=COR['fundo'])
+        dir_f.pack(side='left', fill='both', expand=True)
+
+        self._txt_bench = tk.Text(dir_f, height=30, width=90,
                                    bg=COR['painel'], fg=COR['texto'],
                                    font=('Consolas', 9), relief='flat',
                                    insertbackground=COR['texto'])
-        self._txt_bench.pack(padx=10, pady=8, fill='both', expand=True)
+        self._txt_bench.pack(fill='both', expand=True)
+
+    def _agentes_selecionados(self):
+        return [a for a in self._agentes
+                if self._agentes_ativos.get(a.nome, tk.BooleanVar(value=True)).get()]
 
     def _bench_rodar(self):
+        agentes_sel = self._agentes_selecionados()
+        if not agentes_sel:
+            self._lbl_bench_st.config(text='Nenhum agente ativo!', fg=COR['verm'])
+            return
+
         self._txt_bench.delete('1.0', tk.END)
-        self._txt_bench.insert(tk.END, 'Rodando benchmark, aguarde...\n')
+        self._txt_bench.insert(tk.END,
+            'Rodando benchmark com {} agente(s), aguarde...\n'.format(len(agentes_sel)))
         self._lbl_bench_st.config(text='Rodando...', fg=COR['amarelo'])
         self.update()
 
         def worker():
             from benchmark import rodar_benchmark
-            resultados = rodar_benchmark()
+            resultados = rodar_benchmark(agentes=agentes_sel)
             self.after(0, lambda: self._bench_mostrar(resultados))
 
         threading.Thread(target=worker, daemon=True).start()
@@ -1100,7 +1307,6 @@ class App(tk.Tk):
             self._txt_bench.insert(tk.END, linha)
 
 
-    # Aba 4
 
     def _build_graf(self, pai):
         topo = tk.Frame(pai, bg=COR['painel2'])
@@ -1116,29 +1322,94 @@ class App(tk.Tk):
                                      font=('Segoe UI', 9, 'bold'))
         self._lbl_graf_st.pack(side='left', padx=8)
 
-        self._frame_graf = tk.Frame(pai, bg=COR['fundo'])
-        self._frame_graf.pack(fill='both', expand=True, padx=6, pady=4)
+        corpo = tk.Frame(pai, bg=COR['fundo'])
+        corpo.pack(fill='both', expand=True, padx=6, pady=4)
+
+        esq = tk.Frame(corpo, bg=COR['painel'], width=190)
+        esq.pack(side='left', fill='y', padx=(0, 6))
+        esq.pack_propagate(False)
+
+        tk.Label(esq, text='PUZZLES', bg=COR['painel'], fg=COR['roxo'],
+                 font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=8, pady=(10, 2))
+
+        btn_f = tk.Frame(esq, bg=COR['painel'])
+        btn_f.pack(fill='x', padx=6, pady=(0, 4))
+        tk.Button(btn_f, text='Todos', bg=COR['painel2'], fg=COR['texto'],
+                  relief='flat', font=('Segoe UI', 8),
+                  command=lambda: self._graf_marcar_todos(True)).pack(side='left', padx=2)
+        tk.Button(btn_f, text='Nenhum', bg=COR['painel2'], fg=COR['texto'],
+                  relief='flat', font=('Segoe UI', 8),
+                  command=lambda: self._graf_marcar_todos(False)).pack(side='left', padx=2)
+
+        scroll_f = ScrollableArea(esq, bg=COR['painel'])
+        scroll_f.pack(fill='both', expand=True)
+
+        lista_f = tk.Frame(scroll_f._cv, bg=COR['painel'])
+        scroll_f.colocar(lista_f)
+
+        self._puzzles_ativos_graf = {}
+        from puzzles import puzzles_todos, TAMANHOS
+        todos = puzzles_todos()
+        por_tam = {}
+        for p in todos:
+            por_tam.setdefault(p.linhas, []).append(p)
+
+        for tam in sorted(por_tam):
+            tk.Label(lista_f, text='{}x{}'.format(tam, tam),
+                     bg=COR['painel'], fg=COR['ciano'],
+                     font=('Segoe UI', 8, 'bold')).pack(anchor='w', padx=8, pady=(6, 1))
+            for p in por_tam[tam]:
+                var = tk.BooleanVar(value=True)
+                self._puzzles_ativos_graf[p.nome] = (var, p)
+                tk.Checkbutton(lista_f, text=p.nome.replace(' ' + str(tam) + 'x' + str(tam), ''),
+                               variable=var,
+                               bg=COR['painel'], fg=COR['texto'],
+                               selectcolor=COR['painel2'],
+                               activebackground=COR['painel'],
+                               font=('Segoe UI', 8)).pack(anchor='w', padx=14, pady=1)
+
+        self._frame_graf = tk.Frame(corpo, bg=COR['fundo'])
+        self._frame_graf.pack(side='left', fill='both', expand=True)
 
         self._ph_graf = tk.Label(
             self._frame_graf,
-            text='Clique em Gerar Graficos (precisa de matplotlib)',
+            text='Clique em Gerar Graficos',
             bg=COR['fundo'], fg=COR['cinza'], font=('Segoe UI', 13),
         )
         self._ph_graf.pack(expand=True)
 
         self._imgs_graf = []
 
+    def _graf_marcar_todos(self, valor):
+        for var, _ in self._puzzles_ativos_graf.values():
+            var.set(valor)
+
+    def _puzzles_selecionados_graf(self):
+        return [p for var, p in self._puzzles_ativos_graf.values() if var.get()]
+
     def _graf_gerar(self):
         if not TEM_MPL:
             self._lbl_graf_st.config(text='matplotlib nao encontrado!', fg=COR['verm'])
             return
 
-        self._lbl_graf_st.config(text='Gerando...', fg=COR['amarelo'])
+        agentes_sel = self._agentes_selecionados()
+        if not agentes_sel:
+            self._lbl_graf_st.config(text='Nenhum agente ativo!', fg=COR['verm'])
+            return
+
+        puzzles_sel = self._puzzles_selecionados_graf()
+        if not puzzles_sel:
+            self._lbl_graf_st.config(text='Nenhum puzzle selecionado!', fg=COR['verm'])
+            return
+
+        self._lbl_graf_st.config(
+            text='Gerando ({} puzzles, {} agentes)...'.format(len(puzzles_sel), len(agentes_sel)),
+            fg=COR['amarelo'])
         self.update()
 
         def worker():
             from benchmark import rodar_benchmark
-            resultados = rodar_benchmark()
+            resultados = rodar_benchmark(puzzles=puzzles_sel, agentes=agentes_sel)
             self.after(0, lambda: self._graf_mostrar(resultados))
 
         threading.Thread(target=worker, daemon=True).start()

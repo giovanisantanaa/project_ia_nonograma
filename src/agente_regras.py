@@ -23,7 +23,6 @@ def gerar_candidatos(tamanho, pista):
         g = pista[idx]
         espaco_min = sum(pista[idx:]) + len(pista) - idx - 1
 
-        # tenta posicionar o grupo atual (`g`) em todas posições possíveis
         for inicio in range(pos, tamanho - espaco_min + 1):
             linha = atual + [VAZIA] * (inicio - pos) + [PINTADA] * g
             prox = inicio + g
@@ -60,8 +59,6 @@ def intersecao_candidatos(candidatos):
     tamanho = len(candidatos[0])
     resultado = []
 
-    # retorna valor comum em cada posição se todos candidatos concordam,
-    # caso contrário marca como DESCONHECIDO
     for j in range(tamanho):
         primeiro = candidatos[0][j]
         todos_iguais = True
@@ -109,8 +106,7 @@ class ProblemaNonograma(Problem):
             for j in range(self.puzzle.colunas)
         ]
 
-        # inferências por linhas: interseção de candidatos mostra células
-        # que são iguais em todos os candidatos possíveis
+        # verifica linhas
         for i in range(self.puzzle.linhas):
             if not cl[i]:
                 continue
@@ -119,7 +115,7 @@ class ProblemaNonograma(Problem):
                 if val != DESCONHECIDO and tabuleiro[i][j] == DESCONHECIDO:
                     inferencias.append((i, j, val))
 
-        # inferências por colunas
+        # verifica colunas
         for j in range(self.puzzle.colunas):
             if not cc[j]:
                 continue
@@ -135,6 +131,49 @@ class ProblemaNonograma(Problem):
                 vistos.add((inf[0], inf[1]))
                 unicos.append(inf)
         return unicos
+
+    def actions_com_fonte(self, state):
+        tabuleiro = [list(l) for l in state]
+
+        cl = [
+            filtrar_candidatos(tabuleiro[i], self.cands_linhas[i])
+            for i in range(self.puzzle.linhas)
+        ]
+        cc = [
+            filtrar_candidatos(
+                [tabuleiro[r][j] for r in range(self.puzzle.linhas)],
+                self.cands_colunas[j],
+            )
+            for j in range(self.puzzle.colunas)
+        ]
+
+        inferencias = []
+        fontes = {}
+        vistos = set()
+
+        for i in range(self.puzzle.linhas):
+            if not cl[i]:
+                continue
+            n_cands = len(cl[i])
+            inter = intersecao_candidatos(cl[i])
+            for j, val in enumerate(inter):
+                if val != DESCONHECIDO and tabuleiro[i][j] == DESCONHECIDO and (i, j) not in vistos:
+                    inferencias.append((i, j, val))
+                    fontes[(i, j)] = ('linha', i, n_cands)
+                    vistos.add((i, j))
+
+        for j in range(self.puzzle.colunas):
+            if not cc[j]:
+                continue
+            n_cands = len(cc[j])
+            inter = intersecao_candidatos(cc[j])
+            for i, val in enumerate(inter):
+                if val != DESCONHECIDO and tabuleiro[i][j] == DESCONHECIDO and (i, j) not in vistos:
+                    inferencias.append((i, j, val))
+                    fontes[(i, j)] = ('coluna', j, n_cands)
+                    vistos.add((i, j))
+
+        return inferencias, fontes
 
     def result(self, state, action):
         i, j, val = action
@@ -197,17 +236,22 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
         passos = 0
         historico_passos = []
         historico_celulas = []
+        descricoes_celulas = []
+        descricoes_passos = []
+
+        historico_celulas.append([linha[:] for linha in puzzle.tabuleiro])
+        descricoes_celulas.append('Inicio: analisando candidatos de cada linha e coluna...')
 
         state = self._problema.initial
 
         while True:
-            acoes = self._problema.actions(state)
+            acoes, fontes = self._problema.actions_com_fonte(state)
             passos += 1
 
             if not acoes:
                 break
 
-            # aplica cada inferência diretamente no tabuleiro
+            # aplica cada inferencia e registra o motivo de cada decisao
             for acao in acoes:
                 state = self._problema.result(state, acao)
                 i, j, val = acao
@@ -218,10 +262,27 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
                     linha_copia.append(linha[:])
                 historico_celulas.append(linha_copia)
 
+                val_simbolo = '#' if val == PINTADA else '.'
+                fonte_info = fontes.get((i, j))
+                if fonte_info:
+                    tipo, idx_src, n_cands = fonte_info
+                    if tipo == 'linha':
+                        motivo = 'Linha {} ({} cands): todos concordam em ({},{})={}'.format(
+                            idx_src + 1, n_cands, i + 1, j + 1, val_simbolo
+                        )
+                    else:
+                        motivo = 'Coluna {} ({} cands): todos concordam em ({},{})={}'.format(
+                            idx_src + 1, n_cands, i + 1, j + 1, val_simbolo
+                        )
+                else:
+                    motivo = 'Inferencia: ({},{}) -> {}'.format(i + 1, j + 1, val_simbolo)
+                descricoes_celulas.append(motivo)
+
             linha_copia = []
             for linha in puzzle.tabuleiro:
                 linha_copia.append(linha[:])
             historico_passos.append(linha_copia)
+            descricoes_passos.append('Rodada {}: {} celulas inferidas por logica'.format(passos, len(acoes)))
 
         tempo = time.time() - inicio
 
@@ -232,4 +293,6 @@ class AgenteRegras(SimpleProblemSolvingAgentProgram):
             "passos": passos,
             "historico_passos": historico_passos,
             "historico_celulas": historico_celulas,
+            "descricoes": descricoes_celulas,
+            "descricoes_passos": descricoes_passos,
         }

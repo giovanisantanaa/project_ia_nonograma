@@ -4,7 +4,7 @@
 
 import time
 
-from ambiente import DESCONHECIDO
+from ambiente import DESCONHECIDO, PINTADA, VAZIA
 from base_ia import Problem, Node, astar_search, SimpleProblemSolvingAgentProgram
 from agente_regras import gerar_candidatos, filtrar_candidatos
 
@@ -26,8 +26,12 @@ class ProblemaCSP(Problem):
                 gerar_candidatos(puzzle.linhas, puzzle.pistas_coluna[j])
             )
 
-        #propagacao de restricoes: enquanto existir celula com um unico 
-        #valor possivel, decide ela direto sem precisar de busca
+        self.historico_propagacao = []
+        self.descricoes_propagacao = []
+
+        self.historico_propagacao.append([linha[:] for linha in puzzle.tabuleiro])
+        self.descricoes_propagacao.append('Inicio: calculando dominios iniciais para cada celula...')
+
         self._propagar(puzzle)
 
         estado = tuple(tuple(l) for l in puzzle.tabuleiro)
@@ -51,6 +55,18 @@ class ProblemaCSP(Problem):
                     if len(dom) == 1:
                         puzzle.tabuleiro[i][j] = dom[0]
                         mudou = True
+
+                        snapshot = []
+                        for linha in puzzle.tabuleiro:
+                            snapshot.append(linha[:])
+                        self.historico_propagacao.append(snapshot)
+
+                        val_simbolo = '#' if dom[0] == PINTADA else '.'
+                        self.descricoes_propagacao.append(
+                            'Prop. CSP: dominio unico em ({},{}) -> {}'.format(
+                                i + 1, j + 1, val_simbolo
+                            )
+                        )
 
 
 
@@ -79,7 +95,7 @@ class ProblemaCSP(Problem):
             if cand[i] not in vc:
                 vc.append(cand[i])
 
-        # domínio é a interseção dos valores possíveis segundo linha e coluna
+        # intersecao dos valores possiveis por linha e coluna
         resultado = []
         for v in vl:
             if v in vc:
@@ -98,7 +114,6 @@ class ProblemaCSP(Problem):
                     continue
 
                 dom = self._dominio(i, j, cl, cc)
-                # se algum domínio for vazio, não há solução pelo caminho atual
                 if len(dom) == 0:
                     return None, None
 
@@ -112,7 +127,7 @@ class ProblemaCSP(Problem):
                     if tabuleiro[r][j] == DESCONHECIDO:
                         desconh_c = desconh_c + 1
 
-                # usa (tamanho do domínio, -soma_desconhecidos) como heurística
+                # usa (tamanho do dominio, -soma_desconhecidos) como heuristica
                 score = (len(dom), -(desconh_l + desconh_c))
                 if score < melhor_score:
                     melhor_score = score
@@ -161,7 +176,7 @@ class ProblemaCSP(Problem):
             if not p.linha_consistente(col, p.pistas_coluna[j]):
                 return False
 
-        # todas linhas/colunas coerentes e sem desconhecidos => solução
+        # todas linhas/colunas coerentes e sem desconhecidos => solucao
         return True
 
 
@@ -237,6 +252,7 @@ class AgenteCSP(SimpleProblemSolvingAgentProgram):
 
     def _completar_greedy(self, puzzle):
         acoes = []
+        descricoes = []
 
         tabuleiro_tmp = []
         for linha in puzzle.tabuleiro:
@@ -254,26 +270,42 @@ class AgenteCSP(SimpleProblemSolvingAgentProgram):
             tabuleiro_tmp[i][j] = val
             acoes.append((i, j, val))
 
-        return acoes
+            val_simbolo = '#' if val == PINTADA else '.'
+            descricoes.append('Greedy-MRV: sem A*, chuta ({},{}) -> {}'.format(i + 1, j + 1, val_simbolo))
+
+        return acoes, descricoes
 
     def resolver(self, puzzle):
         inicio = time.time()
 
         self._csp = ProblemaCSP(puzzle)
 
+        historico = list(self._csp.historico_propagacao)
+        descricoes = list(self._csp.descricoes_propagacao)
+
         acoes = self.search(self._csp)
+
         if acoes is None:
-            acoes = self._completar_greedy(puzzle)
-
-        historico = []
-        for acao in acoes:
-            i, j, val = acao
-            puzzle.tabuleiro[i][j] = val
-
-            linha_copia = []
-            for linha in puzzle.tabuleiro:
-                linha_copia.append(linha[:])
-            historico.append(linha_copia)
+            # A* nao encontrou solucao dentro do limite: usa greedy como fallback
+            acoes, descs_greedy = self._completar_greedy(puzzle)
+            for acao, desc in zip(acoes, descs_greedy):
+                i, j, val = acao
+                puzzle.tabuleiro[i][j] = val
+                snapshot = []
+                for linha in puzzle.tabuleiro:
+                    snapshot.append(linha[:])
+                historico.append(snapshot)
+                descricoes.append(desc)
+        else:
+            for acao in acoes:
+                i, j, val = acao
+                puzzle.tabuleiro[i][j] = val
+                snapshot = []
+                for linha in puzzle.tabuleiro:
+                    snapshot.append(linha[:])
+                historico.append(snapshot)
+                val_simbolo = '#' if val == PINTADA else '.'
+                descricoes.append('A* escolhe menor dominio: ({},{}) -> testa {}'.format(i + 1, j + 1, val_simbolo))
 
         tempo = time.time() - inicio
 
@@ -281,7 +313,8 @@ class AgenteCSP(SimpleProblemSolvingAgentProgram):
             "nome": self.nome,
             "resolvido": puzzle.esta_resolvido(),
             "tempo": tempo,
-            "passos": len(acoes),
+            "passos": len(historico),
             "historico_passos": historico,
             "historico_celulas": historico,
+            "descricoes": descricoes,
         }

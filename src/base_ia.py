@@ -1,14 +1,3 @@
-"""Framework básico de busca usado pelos agentes.
-
-Contém classes e algoritmos genéricos de busca (Problem, Node, BFS, DFS,
-A*, Greedy). Os agentes importam e utilizam essas ferramentas para modelar
-e resolver puzzles. Apenas comentários explicativos foram adicionados.
-"""
-
-# estruturas de busca - Problem, Node e os algoritmos
-# (BFS, DFS, A*, Greedy)
-
-
 class Problem:
     def __init__(self, initial, goal=None):
         self.initial = initial
