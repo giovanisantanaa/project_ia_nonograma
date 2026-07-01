@@ -220,11 +220,11 @@ class PainelMetricas(tk.Frame):
             rotulo = campos[row][1]
 
             tk.Label(self, text=rotulo + ':', bg=COR['painel'],
-                     fg=COR['cinza'], font=('Consolas', 8),
+                     fg=COR['cinza'], font=('Consolas', 11),
                      anchor='w', width=8).grid(row=row, column=0,
                                                sticky='w', padx=4, pady=1)
             v = tk.Label(self, text='-', bg=COR['painel'],
-                         fg=COR['texto'], font=('Consolas', 8, 'bold'),
+                         fg=COR['texto'], font=('Consolas', 11, 'bold'),
                          anchor='w', width=16)
             v.grid(row=row, column=1, sticky='w', padx=2, pady=1)
             self._lbs[chave] = v
@@ -1325,48 +1325,24 @@ class App(tk.Tk):
         corpo = tk.Frame(pai, bg=COR['fundo'])
         corpo.pack(fill='both', expand=True, padx=6, pady=4)
 
-        esq = tk.Frame(corpo, bg=COR['painel'], width=190)
+        esq = tk.Frame(corpo, bg=COR['painel'], width=200)
         esq.pack(side='left', fill='y', padx=(0, 6))
         esq.pack_propagate(False)
 
-        tk.Label(esq, text='PUZZLES', bg=COR['painel'], fg=COR['roxo'],
-                 font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=8, pady=(10, 2))
+        tk.Label(esq, text='AGENTES ATIVOS', bg=COR['painel'], fg=COR['roxo'],
+                 font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=8, pady=(10, 6))
 
-        btn_f = tk.Frame(esq, bg=COR['painel'])
-        btn_f.pack(fill='x', padx=6, pady=(0, 4))
-        tk.Button(btn_f, text='Todos', bg=COR['painel2'], fg=COR['texto'],
-                  relief='flat', font=('Segoe UI', 8),
-                  command=lambda: self._graf_marcar_todos(True)).pack(side='left', padx=2)
-        tk.Button(btn_f, text='Nenhum', bg=COR['painel2'], fg=COR['texto'],
-                  relief='flat', font=('Segoe UI', 8),
-                  command=lambda: self._graf_marcar_todos(False)).pack(side='left', padx=2)
-
-        scroll_f = ScrollableArea(esq, bg=COR['painel'])
-        scroll_f.pack(fill='both', expand=True)
-
-        lista_f = tk.Frame(scroll_f._cv, bg=COR['painel'])
-        scroll_f.colocar(lista_f)
-
-        self._puzzles_ativos_graf = {}
-        from puzzles import puzzles_todos, TAMANHOS
-        todos = puzzles_todos()
-        por_tam = {}
-        for p in todos:
-            por_tam.setdefault(p.linhas, []).append(p)
-
-        for tam in sorted(por_tam):
-            tk.Label(lista_f, text='{}x{}'.format(tam, tam),
-                     bg=COR['painel'], fg=COR['ciano'],
-                     font=('Segoe UI', 8, 'bold')).pack(anchor='w', padx=8, pady=(6, 1))
-            for p in por_tam[tam]:
-                var = tk.BooleanVar(value=True)
-                self._puzzles_ativos_graf[p.nome] = (var, p)
-                tk.Checkbutton(lista_f, text=p.nome.replace(' ' + str(tam) + 'x' + str(tam), ''),
-                               variable=var,
-                               bg=COR['painel'], fg=COR['texto'],
-                               selectcolor=COR['painel2'],
-                               activebackground=COR['painel'],
-                               font=('Segoe UI', 8)).pack(anchor='w', padx=14, pady=1)
+        self._agentes_ativos_graf = {}
+        for agente in self._agentes:
+            cor = CORES_AGENTES.get(agente.nome, COR['roxo'])
+            var = tk.BooleanVar(value=True)
+            self._agentes_ativos_graf[agente.nome] = var
+            tk.Checkbutton(esq, text=agente.nome, variable=var,
+                           bg=COR['painel'], fg=cor,
+                           selectcolor=COR['painel2'],
+                           activebackground=COR['painel'],
+                           font=('Segoe UI', 9, 'bold'),
+                           wraplength=175, justify='left').pack(anchor='w', padx=10, pady=4)
 
         self._frame_graf = tk.Frame(corpo, bg=COR['fundo'])
         self._frame_graf.pack(side='left', fill='both', expand=True)
@@ -1380,36 +1356,28 @@ class App(tk.Tk):
 
         self._imgs_graf = []
 
-    def _graf_marcar_todos(self, valor):
-        for var, _ in self._puzzles_ativos_graf.values():
-            var.set(valor)
-
-    def _puzzles_selecionados_graf(self):
-        return [p for var, p in self._puzzles_ativos_graf.values() if var.get()]
+    def _agentes_selecionados_graf(self):
+        return [a for a in self._agentes
+                if self._agentes_ativos_graf.get(a.nome, tk.BooleanVar(value=True)).get()]
 
     def _graf_gerar(self):
         if not TEM_MPL:
             self._lbl_graf_st.config(text='matplotlib nao encontrado!', fg=COR['verm'])
             return
 
-        agentes_sel = self._agentes_selecionados()
+        agentes_sel = self._agentes_selecionados_graf()
         if not agentes_sel:
             self._lbl_graf_st.config(text='Nenhum agente ativo!', fg=COR['verm'])
             return
 
-        puzzles_sel = self._puzzles_selecionados_graf()
-        if not puzzles_sel:
-            self._lbl_graf_st.config(text='Nenhum puzzle selecionado!', fg=COR['verm'])
-            return
-
         self._lbl_graf_st.config(
-            text='Gerando ({} puzzles, {} agentes)...'.format(len(puzzles_sel), len(agentes_sel)),
+            text='Gerando ({} agentes)...'.format(len(agentes_sel)),
             fg=COR['amarelo'])
         self.update()
 
         def worker():
             from benchmark import rodar_benchmark
-            resultados = rodar_benchmark(puzzles=puzzles_sel, agentes=agentes_sel)
+            resultados = rodar_benchmark(agentes=agentes_sel)
             self.after(0, lambda: self._graf_mostrar(resultados))
 
         threading.Thread(target=worker, daemon=True).start()
