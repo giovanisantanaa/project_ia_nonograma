@@ -92,6 +92,17 @@ class GridCanvas(tk.Canvas):
         self._destaque = None
         self.desenhar()
 
+    def set_tc(self, tc):
+        if tc == self.tc:
+            return
+        self.tc = tc
+        self.ox = self.mr * tc
+        self.oy = self.mc * tc
+        w = self.ox + self.puzzle.colunas * tc + 4
+        h = self.oy + self.puzzle.linhas * tc + 4
+        self.config(width=w, height=h)
+        self.desenhar()
+
     def atualizar(self, grid, destaque=None):
         self._grid = grid
         self._destaque = destaque
@@ -176,29 +187,6 @@ class GridCanvas(tk.Canvas):
         self.create_line(0, oy, ox + p.colunas * tc, oy,
                          fill=COR['texto'], width=2)
 
-
-
-class ScrollableArea(tk.Frame):
-
-    def __init__(self, parent, bg=COR['fundo'], **kw):
-        super().__init__(parent, bg=bg, **kw)
-        self._cv = tk.Canvas(self, bg=bg, highlightthickness=0)
-        hbar = ttk.Scrollbar(self, orient='horizontal', command=self._cv.xview)
-        vbar = ttk.Scrollbar(self, orient='vertical', command=self._cv.yview)
-        self._cv.configure(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
-        hbar.pack(side='bottom', fill='x')
-        vbar.pack(side='right', fill='y')
-        self._cv.pack(side='left', fill='both', expand=True)
-        self._child = None
-
-    def colocar(self, widget):
-        self._child = widget
-        self._cv.create_window((4, 4), window=widget, anchor='nw')
-        widget.bind('<Configure>', lambda *_: self._cv.configure(scrollregion=self._cv.bbox('all')))
-        # scroll com roda do mouse
-        self._cv.bind('<MouseWheel>', lambda e: self._cv.yview_scroll(-(e.delta // 120), 'units'))
-        self._cv.bind('<Shift-MouseWheel>', lambda e: self._cv.xview_scroll(-(e.delta // 120), 'units'))
-        widget.bind('<MouseWheel>', lambda e: self._cv.yview_scroll(-(e.delta // 120), 'units'))
 
 
 # Painel de metricas
@@ -369,6 +357,7 @@ class App(tk.Tk):
         self._comp_historicos = []
         self._comp_puzzle = None
         self._comp_grids = []
+        self._comp_grids_w = []
         self._comp_idx = 0
         self._comp_rodando = False
         self._comp_after = None
@@ -561,6 +550,8 @@ class App(tk.Tk):
 
         self._frame_grid_solo = tk.Frame(dir_frame, bg=COR['fundo'])
         self._frame_grid_solo.pack(fill='both', expand=True)
+        self._frame_grid_solo.bind('<Configure>', self._solo_on_resize)
+        self._resize_after_id_solo = None
 
         self._ph_solo = tk.Label(
             self._frame_grid_solo,
@@ -618,17 +609,47 @@ class App(tk.Tk):
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def _calc_tc_solo(self, puzzle):
+        self._frame_grid_solo.update_idletasks()
+        w_avail = self._frame_grid_solo.winfo_width()
+        h_avail = self._frame_grid_solo.winfo_height()
+        if w_avail < 50:
+            w_avail = 800
+        if h_avail < 50:
+            h_avail = 600
+
+        mr = max((len(c) for c in puzzle.pistas_linha), default=1)
+        mc = max((len(c) for c in puzzle.pistas_coluna), default=1)
+
+        cols_unid = mr + puzzle.colunas
+        linhas_unid = mc + puzzle.linhas
+
+        tc_w = (w_avail - 12) // cols_unid
+        tc_h = (h_avail - 12) // linhas_unid
+        tc = min(tc_w, tc_h)
+        return max(10, min(tc, 40))
+
+    def _solo_on_resize(self, event=None):
+        if self._resize_after_id_solo is not None:
+            self.after_cancel(self._resize_after_id_solo)
+        self._resize_after_id_solo = self.after(80, self._solo_aplicar_resize)
+
+    def _solo_aplicar_resize(self):
+        self._resize_after_id_solo = None
+        if self._wgrid_solo is None or self._puzzle_solo is None:
+            return
+        tc = self._calc_tc_solo(self._puzzle_solo)
+        self._wgrid_solo.set_tc(tc)
+
     def _solo_iniciar_anim(self, resultado, puzzle):
         self._ph_solo.pack_forget()
         for w in self._frame_grid_solo.winfo_children():
             w.destroy()
 
-        tc = 32  # tamanho fixo de cada celula; scroll cuida do overflow
+        tc = self._calc_tc_solo(puzzle)
 
-        area = ScrollableArea(self._frame_grid_solo)
-        area.pack(fill='both', expand=True)
-        self._wgrid_solo = GridCanvas(area._cv, puzzle, tc=tc)
-        area.colocar(self._wgrid_solo)
+        self._wgrid_solo = GridCanvas(self._frame_grid_solo, puzzle, tc=tc)
+        self._wgrid_solo.pack(expand=True)
 
         modo = self._var_modo.get()
         if modo == 'celulas':
@@ -688,6 +709,18 @@ class App(tk.Tk):
             self._btn_play_solo.config(text='Pause', bg=COR['amarelo'])
 
 
+    def _calc_tc_comp(self, puzzle, largura_disp, altura_disp):
+        mr = max((len(c) for c in puzzle.pistas_linha), default=1)
+        mc = max((len(c) for c in puzzle.pistas_coluna), default=1)
+
+        cols_unid = mr + puzzle.colunas
+        linhas_unid = mc + puzzle.linhas
+
+        tc_w = (largura_disp - 24) // cols_unid
+        tc_h = (altura_disp - 24) // linhas_unid
+        tc = min(tc_w, tc_h)
+        return max(8, min(tc, 32))
+
     def _comp_ajustar_colunas(self):
         ativos = [a for a in self._agentes if self._agentes_ativos_comp[a.nome].get()]
         n = len(ativos)
@@ -696,7 +729,21 @@ class App(tk.Tk):
         win_w = self._cv_comp.winfo_width()
         if win_w < 200:
             win_w = self.winfo_width() - 30
-        col_w = max(200, (win_w - 6 * n) // n)
+        col_w_budget = max(200, (win_w - 6 * n) // n)
+
+        puzzle = self._comp_puzzle
+        tc = None
+        col_w = col_w_budget
+        if puzzle is not None:
+            exemplo = self._comp_cols[ativos[0].nome]
+            altura_disp = exemplo['frame'].winfo_height()
+            if altura_disp < 80:
+                altura_disp = self.winfo_height() - 260
+            tc = self._calc_tc_comp(puzzle, col_w_budget, altura_disp)
+            mr = max((len(c) for c in puzzle.pistas_linha), default=1)
+            grid_w = mr * tc + puzzle.colunas * tc + 20
+            col_w = max(grid_w, col_w_budget)
+
         for agente in self._agentes:
             col_data = self._comp_cols[agente.nome]
             col_frame = col_data['col']
@@ -707,6 +754,12 @@ class App(tk.Tk):
                 col_data['desc'].config(wraplength=col_w - 20)
             else:
                 col_frame.pack_forget()
+
+        if tc is not None:
+            for idx in range(len(self._comp_grids_w)):
+                gw = self._comp_grids_w[idx]
+                if gw is not None:
+                    gw.set_tc(tc)
 
     def _build_comp(self, pai):
         topo = tk.Frame(pai, bg=COR['painel2'])
@@ -941,8 +994,6 @@ class App(tk.Tk):
     def _comp_init(self, puzzle):
         self.update_idletasks()
 
-        tc = 20
-
         ativos = [a for a in self._agentes if self._agentes_ativos_comp[a.nome].get()]
         n = len(ativos)
         if n == 0:
@@ -951,9 +1002,18 @@ class App(tk.Tk):
         win_w = self._cv_comp.winfo_width()
         if win_w < 200:
             win_w = self.winfo_width() - 30
+        col_w_budget = max(200, (win_w - 6 * n) // n)
+
+        exemplo = self._comp_cols[ativos[0].nome]
+        altura_disp = exemplo['frame'].winfo_height()
+        if altura_disp < 80:
+            altura_disp = self.winfo_height() - 260
+
+        tc = self._calc_tc_comp(puzzle, col_w_budget, altura_disp)
+
         mr = max((len(c) for c in puzzle.pistas_linha), default=1)
         grid_w = mr * tc + puzzle.colunas * tc + 20
-        col_w = max(grid_w, (win_w - 6 * n) // n)
+        col_w = max(grid_w, col_w_budget)
 
         self._comp_grids_w = []
 
